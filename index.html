@@ -1,0 +1,2011 @@
+<title>Ассистент кернинг-классов</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap">
+<style>
+:root{
+  --bg:#F3F5F4; --surface:#FFF; --surface-2:#F8FAF9; --sunken:#E8ECEA;
+  --ink:#15191A; --ink-2:#3B4446; --muted:#5E696B; --faint:#8B9698;
+  --line:#DCE2E0; --line-2:#C7CFCD;
+  --accent:#1F6F5C; --accent-soft:#E0EFE9; --on-accent:#fff;
+  --warn:#A85B14; --warn-soft:#FAEEE0;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --serif:"Instrument Serif",Georgia,serif; --r:7px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D100F; --surface:#161A19; --surface-2:#1B201F; --sunken:#0A0D0C;
+  --ink:#E5EAE8; --ink-2:#BCC5C3; --muted:#8C9795; --faint:#6C7775;
+  --line:#252B2A; --line-2:#333B39;
+  --accent:#4FBF9F; --accent-soft:#0F2A24; --on-accent:#05211A;
+  --warn:#D69049; --warn-soft:#2E2211;
+}}
+:root[data-theme="dark"]{
+  --bg:#0D100F; --surface:#161A19; --surface-2:#1B201F; --sunken:#0A0D0C;
+  --ink:#E5EAE8; --ink-2:#BCC5C3; --muted:#8C9795; --faint:#6C7775;
+  --line:#252B2A; --line-2:#333B39;
+  --accent:#4FBF9F; --accent-soft:#0F2A24; --on-accent:#05211A;
+  --warn:#D69049; --warn-soft:#2E2211;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+h1,h2{margin:0;text-wrap:balance}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 24px 70px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:22px}
+header h1{font-family:var(--serif);font-size:33px;font-weight:400;line-height:1}
+header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:5px}
+.tally{display:flex;gap:22px;flex-wrap:wrap}
+.tally div{text-align:right}
+.tally .v{font-family:var(--mono);font-size:21px;font-weight:500;font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em}
+.tally .k{font-size:10.5px;color:var(--muted);letter-spacing:.03em}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.lbl{font-size:10.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);
+  margin-bottom:9px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.card+.card{margin-top:14px}
+.card.now{border-color:var(--accent);border-width:2px}
+.q{font-size:17px;line-height:1.35;margin-bottom:4px}
+.q b{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent)}
+.why{font-size:12.5px;color:var(--muted);margin-bottom:13px}
+.chips{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:14px}
+.chip{width:38px;height:40px;border:1px solid var(--line);border-radius:4px;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.chip svg{width:100%;height:100%}
+.chip path{fill:var(--ink-2)}
+.chip.off{opacity:.28}
+.chip.off path{fill:var(--faint)}
+.chip.hot{border-color:var(--warn);background:var(--warn-soft)}
+.chip.hot path{fill:var(--warn)}
+.chip.txt{width:auto;padding:3px 6px;font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  line-height:1.2;word-break:break-all}
+.pick .chip{cursor:pointer}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.b{border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;padding:8px 15px;font-size:13px}
+.b:hover{border-color:var(--accent);color:var(--accent)}
+.b.main{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+.b.main:hover{color:var(--on-accent);opacity:.92}
+.nm{font-family:var(--mono);font-size:13px;padding:8px 11px;border:1px solid var(--line-2);
+  border-radius:5px;background:var(--surface);color:var(--ink);min-width:150px}
+.find{border-left:3px solid var(--warn);padding:11px 13px;background:var(--surface);
+  border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:var(--r);margin-bottom:9px}
+.find .t{font-size:12.5px;line-height:1.45}
+.find .t b{font-family:var(--mono);font-weight:600}
+.find .n{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+.find .chips{margin:8px 0 0}
+.find .act{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.find .act button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;
+  padding:5px 11px;font-size:12px;font-family:var(--mono)}
+.find .act button:hover{border-color:var(--accent);color:var(--accent)}
+.find .act .no{font-family:var(--sans)}
+.find .act .no:hover{border-color:var(--muted);color:var(--muted)}
+.rule{font-family:var(--mono);font-size:11.5px;padding:7px 10px;background:var(--accent-soft);
+  border-radius:5px;margin-bottom:6px;color:var(--ink-2)}
+.rule b{color:var(--accent)}
+.done{text-align:center;padding:36px 20px;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted);line-height:1.5}
+.seg{display:flex;background:var(--sunken);border-radius:var(--r);padding:3px;gap:3px;margin-bottom:14px}
+.seg button{flex:1;border:0;background:transparent;padding:7px;border-radius:4px;font-size:12.5px;
+  color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);
+  box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--line)}
+.msg{font-size:12px;color:var(--muted);min-height:16px;margin-top:8px}
+
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.case{display:flex;flex-wrap:wrap;gap:3px;max-height:52vh;overflow:auto;padding:2px}
+.case .chip{cursor:pointer}
+.case .chip:hover{border-color:var(--accent)}
+.srch{width:100%;padding:8px 11px;border:1px solid var(--line-2);border-radius:5px;
+  background:var(--surface);color:var(--ink);font-family:var(--mono);font-size:12.5px;margin-bottom:10px}
+.band{margin-bottom:13px}
+.band .bh{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.band .bt{font-size:12.5px;font-weight:500}
+.band .bd{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.band .ba{margin-left:auto;font-size:11.5px;color:var(--accent);cursor:pointer;
+  border:0;background:none;padding:0}
+.band .bg{font-size:11.5px;border:1px solid var(--accent);background:var(--accent);
+  color:var(--on-accent);border-radius:4px;padding:3px 10px;font-weight:500}
+.band .bg:hover{opacity:.9}
+.chip.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent);background:var(--accent-soft)}
+.chip.on path{fill:var(--accent)}
+.chip.seed{border-color:var(--warn);box-shadow:0 0 0 2px var(--warn);background:var(--warn-soft)}
+.chip.seed path{fill:var(--warn)}
+.mine{display:flex;flex-direction:column;gap:5px;max-height:30vh;overflow:auto}
+.mine .g{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;
+  padding:5px 8px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px}
+.mine .g b{color:var(--accent);font-weight:600}
+.mine .g .x{margin-left:auto;color:var(--faint);cursor:pointer;border:0;background:none}
+.empty{color:var(--muted);font-size:12.5px;line-height:1.5;padding:6px 0}
+.warn{margin-top:10px;padding:10px 12px;border:1px solid var(--warn);background:var(--warn-soft);
+  border-radius:5px;font-size:12.5px;line-height:1.45}
+.warn b{font-family:var(--mono);font-weight:600}
+.warn .chips{margin:8px 0 0}
+.tog{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+  cursor:pointer;margin-bottom:9px}
+.togs{display:flex;gap:16px;flex-wrap:wrap}
+/* names under the chips, on demand */
+.cap .chip{height:56px;padding-bottom:13px}
+.cap .chip::after{content:attr(data-n);position:absolute;left:1px;right:1px;bottom:1px;
+  font-family:var(--mono);font-size:8.5px;line-height:1.2;color:var(--faint);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;direction:rtl}
+.cap .chip.txt::after{content:none}
+/* the native tooltip waits a second; this one does not */
+#tip{position:fixed;z-index:90;pointer-events:none;display:none;
+  background:var(--ink);color:var(--bg);font-family:var(--mono);font-size:11.5px;
+  padding:4px 8px;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,.3);white-space:nowrap}
+#tip i{font-style:normal;opacity:.62;margin-left:7px}
+.ac{margin-top:7px;border:1px solid var(--line);border-radius:5px;overflow:hidden;
+  background:var(--surface);max-height:210px;overflow-y:auto}
+.ac:empty{display:none}
+.ac button{display:flex;align-items:baseline;gap:9px;width:100%;text-align:left;border:0;
+  background:none;padding:7px 11px;font-family:var(--mono);font-size:12.5px;
+  border-bottom:1px solid var(--line)}
+.ac button:last-child{border-bottom:0}
+.ac button:hover,.ac button.sel{background:var(--accent-soft);color:var(--accent)}
+.ac .c{margin-left:auto;font-size:11px;color:var(--muted)}
+.ac .s{font-size:10.5px;color:var(--faint);font-family:var(--sans)}
+.undo{width:100%;border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;
+  padding:8px 11px;font-size:12.5px;text-align:left;margin-bottom:10px;
+  display:flex;align-items:baseline;gap:8px}
+.undo:hover:not(:disabled){border-color:var(--warn);color:var(--warn)}
+.undo:disabled{opacity:.45;cursor:default}
+.undo .k{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.pairs{display:flex;flex-wrap:wrap;gap:5px}
+.pr{display:flex;flex-direction:column;gap:2px;align-items:center}
+.pr .slot{width:38px;height:40px;border:1px dashed var(--line-2);border-radius:4px;
+  background:repeating-linear-gradient(45deg,transparent,transparent 4px,var(--sunken) 4px,var(--sunken) 5px)}
+.pr .lab{font-family:var(--mono);font-size:8px;color:var(--warn);max-width:40px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.other{border-color:var(--warn);background:var(--warn-soft)}
+.chip.other path{fill:var(--warn)}
+.hdr{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:10px}
+.hdr .nm2{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--accent)}
+.hdr .vd{font-size:12.5px;color:var(--muted)}
+.hdr .bad{color:var(--warn)}
+.simrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+@media (max-width:760px){.simrow{grid-template-columns:1fr}}
+.simcol .ct{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--accent);
+  margin-bottom:6px;display:flex;gap:7px;align-items:baseline}
+.simcol .ct span{font-family:var(--sans);font-weight:400;font-size:11px;color:var(--muted)}
+.simd{font-family:var(--mono);font-size:12.5px;color:var(--warn);white-space:nowrap}
+.cl{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:12px 14px;margin-bottom:10px}
+.cl .ch{display:flex;align-items:baseline;gap:9px;margin-bottom:8px}
+.cl .ch .n{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)}
+.cl .ch .c{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.cl .ch .here{margin-left:auto;display:none;border:1px solid var(--accent);
+  background:var(--accent-soft);color:var(--accent);border-radius:4px;padding:3px 10px;
+  font-size:11.5px;font-family:var(--mono)}
+body.moving .cl .ch .here{display:inline-block}
+.cl .chip{cursor:pointer}
+.chip.pick{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent);background:var(--accent-soft)}
+.chip.pick path{fill:var(--accent)}
+.chip.more{cursor:pointer;border-style:dashed;color:var(--accent);font-weight:600;
+  align-self:center;height:40px;display:flex;align-items:center}
+.chip.more:hover{border-color:var(--accent);background:var(--accent-soft)}
+.chip.sus{border-color:var(--warn);border-width:2px}
+.chip.sus path{fill:var(--warn)}
+.cl .ch .sus{font-size:11.5px;color:var(--warn);font-family:var(--sans)}
+.au{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 15px;margin-bottom:10px}
+.au.bad{border-color:var(--warn);border-left-width:3px}
+.au .ah{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.au .ah .n{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)}
+.au .ah .m{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.au .ah .sp{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.au .ah .acts{margin-left:auto;display:flex;gap:6px}
+.au .ah .acts button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;
+  padding:5px 11px;font-size:12px}
+.au .ah .acts button:hover{border-color:var(--accent);color:var(--accent)}
+.bar2{height:4px;border-radius:99px;background:var(--sunken);overflow:hidden;margin-bottom:9px}
+.bar2 i{display:block;height:100%;border-radius:99px}
+.ausum{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:12px 15px;margin-bottom:14px}
+.ausum b{font-family:var(--mono);color:var(--ink-2);font-weight:600}
+.movebar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;display:none;
+  gap:9px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line-2);
+  border-radius:9px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.24);max-width:94vw}
+body.moving .movebar{display:flex}
+.movebar .n{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)}
+.movebar input{font-family:var(--mono);font-size:12.5px;padding:7px 10px;border:1px solid var(--line-2);
+  border-radius:5px;background:var(--surface);color:var(--ink);min-width:190px}
+.movebar button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;
+  padding:7px 13px;font-size:12.5px}
+.movebar .go{border-color:var(--accent);background:var(--accent);color:var(--on-accent);font-weight:500}
+.hdr .fix{margin-left:auto;border:1px solid var(--accent);background:var(--accent);
+  color:var(--on-accent);border-radius:5px;padding:6px 12px;font-size:12.5px;font-weight:500}
+.hdr .fix:hover{opacity:.9}
+.pr .chip.other{cursor:pointer}
+.pr .chip.other:hover{box-shadow:0 0 0 2px var(--warn)}
+.np{border:1px solid var(--accent);border-left-width:3px;background:var(--surface);
+  border-radius:var(--r);padding:13px 15px;margin-bottom:12px}
+.np .h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.np .h .t{font-size:13.5px;line-height:1.4}
+.np .h .t b{font-family:var(--mono);font-weight:600;color:var(--accent)}
+.np .h .a{margin-left:auto;display:flex;gap:6px;flex:none}
+.np .h .a button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;
+  padding:6px 12px;font-size:12.5px}
+.np .h .a .y{border-color:var(--accent);background:var(--accent);color:var(--on-accent);font-weight:500}
+
+.gate{max-width:640px;margin:12vh auto;text-align:center;padding:0 20px}
+.gate h1{font-family:var(--serif);font-size:44px;font-weight:400;margin-bottom:10px}
+.gate p{color:var(--muted);font-size:14.5px;line-height:1.6;margin:0 auto 26px;max-width:46ch}
+.drop{border:2px dashed var(--line-2);border-radius:12px;padding:44px 28px;background:var(--surface);
+  transition:border-color .15s,background .15s;cursor:pointer}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{font-size:16px}
+.drop span{display:block;color:var(--muted);font-size:12.5px;margin-top:7px}
+.mpick{margin-top:22px;display:none;text-align:left;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.mpick.on{display:block}
+.mpick .lbl{margin-bottom:10px}
+.mrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.mrow button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;
+  padding:8px 14px;font-size:13px}
+.mrow button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);
+  color:var(--on-accent);font-weight:500}
+.prog{font-family:var(--mono);font-size:12px;color:var(--muted);min-height:18px}
+#app{display:none}
+#app.on{display:block}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="gate" id="gate">
+  <h1>Ассистент классов</h1>
+  <p>Бросьте сюда файл <b>.glyphs</b> — приложение разберёт его прямо в браузере,
+     покажет классы, найдёт неточности и вернёт готовый файл. Ничего не устанавливается,
+     шрифт никуда не отправляется.</p>
+  <div class="drop" id="drop">
+    <b>Перетащите .glyphs сюда</b>
+    <span>или нажмите, чтобы выбрать файл</span>
+    <input type="file" id="file" accept=".glyphs" hidden>
+  </div>
+  <div class="mpick" id="mpick">
+    <div class="lbl">Мастер</div>
+    <div class="mrow" id="mrow"></div>
+    <button class="b main" id="go" style="width:100%">Разобрать</button>
+    <div class="prog" id="prog"></div>
+  </div>
+</div>
+<div id="app">
+<div class="wrap">
+<header>
+  <div><h1>Ассистент классов</h1><div class="sub" id="sub">—</div></div>
+  <div class="tally">
+    <div><div class="v" id="t-cls">—</div><div class="k">классов в шрифте</div></div>
+    <div><div class="v" id="t-un">—</div><div class="k">без класса</div></div>
+    <div><div class="v" id="t-done">—</div><div class="k">ваших правок</div></div>
+    <div><div class="v" id="t-find">—</div><div class="k">неточностей</div></div>
+  </div>
+</header>
+
+<div class="seg" id="viewseg">
+  <button data-view="work" aria-pressed="true">Касса и классы</button>
+  <button data-view="pairs" aria-pressed="false">Парные классы</button>
+  <button data-view="sim" aria-pressed="false">Похожие классы</button>
+  <button data-view="audit" aria-pressed="false">Проверка</button>
+  <button data-view="list" aria-pressed="false">Все классы</button>
+</div>
+
+<div class="seg" id="sideseg">
+  <button data-side="R" aria-pressed="true">Правая сторона · @MMK_L_</button>
+  <button data-side="L" aria-pressed="false">Левая сторона · @MMK_R_</button>
+</div>
+
+<div class="cols">
+  <div>
+    <div class="lbl" id="stagelbl">Касса — выберите глиф, с которого начать класс</div>
+    <div id="nextprops"></div>
+    <div id="stage"></div>
+    <div class="lbl" style="margin-top:24px">Неточности в том, что уже есть</div>
+    <div id="finds"></div>
+  </div>
+  <div>
+    <div class="lbl">Ваши классы</div>
+    <div class="pane">
+      <button class="undo" id="undo" disabled><span id="undot">Отменять нечего</span>
+        <span class="k">⌘Z</span></button>
+      <label class="tog" style="margin-bottom:11px"><input type="checkbox" id="learn" checked>
+        предлагать продолжение после каждого решения</label>
+      <div class="mine" id="mine"></div>
+    </div>
+    <div class="lbl" style="margin-top:22px">Итог</div>
+    <div class="pane">
+      <button class="b main" id="dlfont" style="width:100%">Применить и скачать шрифт</button>
+      <button class="b" id="dl" style="width:100%;margin-top:7px">Только groups.json</button>
+      <button class="b" id="cp" style="width:100%;margin-top:7px">Скопировать JSON</button>
+      <div class="msg" id="msg"></div>
+      <div class="hint" style="margin-top:10px">Скачивается копия вашего файла с записанными
+        классами. Всё, чего вы не касались, остаётся как было — правятся только те строки,
+        которые вы изменили.</div>
+    </div>
+    <div class="pane" style="margin-top:14px">
+      <button class="b" id="reset" style="width:100%">Начать заново</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="movebar" id="movebar">
+  <span class="n" id="mvn">0</span>
+  <span style="font-size:12.5px;color:var(--muted)">выбрано — «сюда» на классе или впишите имя</span>
+  <input id="mvto" list="clslist" placeholder="класс назначения" spellcheck="false">
+  <datalist id="clslist"></datalist>
+  <button class="go" id="mvgo">Переместить</button>
+  <button id="mvoff">Снять</button>
+</div>
+<div id="tip"></div>
+
+</div>
+<script>
+/* Minimal reader for the Glyphs 3 source format.
+ *
+ * It is a plist-ish text: `key = value;` inside `{}`, lists in `()`, and bare
+ * words where quoting is unnecessary.  We only need glyph names, kern groups,
+ * per-master layers, outlines and components - so the parser reads the whole
+ * tree but the caller picks out those parts.
+ */
+(function (root) {
+"use strict";
+
+function parse(text) {
+  let i = 0;
+  const n = text.length;
+
+  function ws() {
+    while (i < n) {
+      const c = text.charCodeAt(i);
+      if (c === 32 || c === 9 || c === 10 || c === 13) { i++; continue; }
+      if (c === 47 && text.charCodeAt(i + 1) === 47) {            // // line
+        while (i < n && text.charCodeAt(i) !== 10) i++;
+        continue;
+      }
+      if (c === 47 && text.charCodeAt(i + 1) === 42) {            // /* block */
+        i = text.indexOf("*/", i + 2);
+        i = i < 0 ? n : i + 2;
+        continue;
+      }
+      break;
+    }
+  }
+  function str() {
+    i++;                                                          // opening "
+    let out = "";
+    while (i < n) {
+      const c = text[i];
+      if (c === "\\") { out += text[i + 1]; i += 2; continue; }
+      if (c === '"') { i++; return out; }
+      out += c; i++;
+    }
+    return out;
+  }
+  function bare() {
+    const s = i;
+    while (i < n) {
+      const c = text[i];
+      if (c === ";" || c === "," || c === ")" || c === "}" || c === "=" ||
+          c === "\n" || c === "\r") break;
+      i++;
+    }
+    return text.slice(s, i).trim();
+  }
+  function value() {
+    ws();
+    const c = text[i];
+    if (c === "{") return dict();
+    if (c === "(") return list();
+    if (c === '"') return str();
+    return bare();
+  }
+  function list() {
+    i++;                                                          // (
+    const out = [];
+    for (;;) {
+      ws();
+      if (text[i] === ")") { i++; return out; }
+      out.push(value());
+      ws();
+      if (text[i] === ",") i++;
+      else if (text[i] === ")") { i++; return out; }
+      else if (i >= n) return out;
+    }
+  }
+  function dict() {
+    i++;                                                          // {
+    const out = {};
+    for (;;) {
+      ws();
+      if (text[i] === "}") { i++; return out; }
+      if (i >= n) return out;
+      const k = text[i] === '"' ? str() : bare();
+      ws();
+      if (text[i] === "=") i++;
+      out[k] = value();
+      ws();
+      if (text[i] === ";") i++;
+    }
+  }
+  ws();
+  return text[i] === "{" ? dict() : list();
+}
+
+/* ---- the parts we care about ---- */
+function readFont(text) {
+  const raw = parse(text);
+  const masters = (raw.fontMaster || []).map(m => ({
+    id: m.id,
+    name: m.name || (m.properties && m.properties.name) || m.id,
+    metrics: m.metricValues || m.metrics || null,
+    custom: m
+  }));
+  const glyphs = (raw.glyphs || []).map(g => ({
+    name: g.glyphname,
+    unicode: g.unicode || null,
+    export: g.export === undefined ? true : String(g.export) !== "0",
+    category: g.category || null,
+    kernLeft: g.kernLeft === undefined ? null : g.kernLeft,
+    kernRight: g.kernRight === undefined ? null : g.kernRight,
+    layers: (g.layers || []).map(L => ({
+      layerId: L.layerId,
+      associated: L.associatedMasterId || null,
+      width: L.width === undefined ? 0 : parseFloat(L.width),
+      shapes: L.shapes || []
+    }))
+  }));
+  return {
+    raw: raw,
+    upm: parseFloat(raw.unitsPerEm || 1000),
+    familyName: raw.familyName || "",
+    masters: masters,
+    glyphs: glyphs,
+    axes: raw.axes || []
+  };
+}
+
+/* metric values live per master, in the order the font declares its metrics */
+function masterMetrics(font, master) {
+  const order = (font.raw.metrics || []).map(m => (m.type || "").toString());
+  const vals = master.custom.metricValues || [];
+  const out = {};
+  order.forEach((t, k) => {
+    const v = vals[k];
+    out[t || ("m" + k)] = v ? parseFloat(v.pos || 0) : 0;
+  });
+  return {
+    ascender: out.ascender || 800,
+    capHeight: out.cap || out.capHeight || 700,
+    xHeight: out.x || out.xHeight || 500,
+    descender: out.descender || -200,
+    italicAngle: parseFloat(master.custom.italicAngle || 0)
+  };
+}
+
+root.GlyphsFile = { parse: parse, readFont: readFont, masterMetrics: masterMetrics };
+})(window);
+
+</script>
+<script>
+/* Scanline gap profiles, straight from a parsed .glyphs source.
+ * A port of the Python side, kept deliberately literal so the two agree.
+ */
+(function (root) {
+"use strict";
+const YMIN = -320, YMAX = 920, YSTEP = 8, CURVE = 12;
+const YS = [];
+for (let y = YMIN; y <= YMAX; y += YSTEP) YS.push(y);
+const NY = YS.length;
+
+function cubic(p0, p1, p2, p3, out) {
+  for (let k = 1; k <= CURVE; k++) {
+    const t = k / CURVE, u = 1 - t;
+    out.push([
+      u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0],
+      u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1]]);
+  }
+}
+const isOff = t => typeof t === "string" && t.charAt(0) === "o";
+
+function contour(shape) {
+  const nd = shape.nodes || [];
+  if (!nd.length) return [];
+  const N = nd.map(v => [parseFloat(v[0]), parseFloat(v[1]), v[2] || "l"]);
+  let start = N.findIndex(v => !isOff(v[2]));
+  if (start < 0) return [];
+  const R = N.slice(start).concat(N.slice(0, start));
+  const pts = [[R[0][0], R[0][1]]];
+  let i = 1;
+  const m = R.length;
+  while (i <= m) {
+    const node = R[i % m];
+    if (isOff(node[2])) {
+      const c1 = [node[0], node[1]];
+      const c2n = R[(i + 1) % m], on = R[(i + 2) % m];
+      cubic(pts[pts.length - 1], c1, [c2n[0], c2n[1]], [on[0], on[1]], pts);
+      i += 3;
+    } else { pts.push([node[0], node[1]]); i++; }
+  }
+  return pts;
+}
+function apply(t, x, y) { return [t[0]*x + t[2]*y + t[4], t[1]*x + t[3]*y + t[5]]; }
+function compose(a, b) {
+  return [a[0]*b[0] + a[2]*b[1], a[1]*b[0] + a[3]*b[1],
+          a[0]*b[2] + a[2]*b[3], a[1]*b[2] + a[3]*b[3],
+          a[0]*b[4] + a[2]*b[5] + a[4], a[1]*b[4] + a[3]*b[5] + a[5]];
+}
+const IDENT = [1, 0, 0, 1, 0, 0];
+
+function shapeTransform(s) {
+  const p = s.pos ? [parseFloat(s.pos[0]), parseFloat(s.pos[1])] : [0, 0];
+  const sc = s.scale ? [parseFloat(s.scale[0]), parseFloat(s.scale[1])] : [1, 1];
+  return [sc[0], 0, 0, sc[1], p[0], p[1]];
+}
+const isMark = name => /comb/.test(name);
+
+function polygons(font, index, name, layerId, xform, depth, skipMarks, out) {
+  if (depth > 6) return;
+  const g = index[name];
+  if (!g) return;
+  const L = g.layers.find(l => l.layerId === layerId) ||
+            g.layers.find(l => l.associated === layerId);
+  if (!L) return;
+  for (const s of L.shapes) {
+    if (s.ref) {
+      if (skipMarks && isMark(s.ref)) continue;
+      polygons(font, index, s.ref, layerId,
+               compose(xform, shapeTransform(s)), depth + 1, skipMarks, out);
+    } else if (s.nodes) {
+      const c = contour(s);
+      if (c.length > 2) out.push(c.map(p => apply(xform, p[0], p[1])));
+    }
+  }
+}
+
+function profile(font, index, name, layerId, skipMarks) {
+  const g = index[name];
+  if (!g) return null;
+  const L = g.layers.find(l => l.layerId === layerId) ||
+            g.layers.find(l => l.associated === layerId);
+  if (!L) return null;
+  const polys = [];
+  polygons(font, index, name, layerId, IDENT, 0, !!skipMarks, polys);
+  const lo = new Array(NY).fill(null), hi = new Array(NY).fill(null);
+  for (const poly of polys) {
+    const m = poly.length;
+    for (let a = 0; a < m; a++) {
+      const [x1, y1] = poly[a], [x2, y2] = poly[(a + 1) % m];
+      if (y1 === y2) continue;
+      const ylo = Math.min(y1, y2), yhi = Math.max(y1, y2);
+      let i0 = Math.max(0, Math.ceil((ylo - YMIN) / YSTEP));
+      let i1 = Math.min(NY - 1, Math.floor((yhi - YMIN) / YSTEP));
+      for (let k = i0; k <= i1; k++) {
+        const y = YS[k];
+        if (!(ylo <= y && y < yhi)) continue;
+        const x = x1 + (x2 - x1) * (y - y1) / (y2 - y1);
+        if (lo[k] === null || x < lo[k]) lo[k] = x;
+        if (hi[k] === null || x > hi[k]) hi[k] = x;
+      }
+    }
+  }
+  return { lo: lo, hi: hi, adv: L.width };
+}
+
+const FAR = 9999;
+function gapProfile(p, side) {
+  const out = new Array(NY);
+  for (let k = 0; k < NY; k++) {
+    if (side === "R") out[k] = p.hi[k] === null ? FAR : p.adv - p.hi[k];
+    else out[k] = p.lo[k] === null ? FAR : p.lo[k];
+  }
+  return out;
+}
+function svgPath(font, index, name, layerId, scale) {
+  const polys = [];
+  polygons(font, index, name, layerId, IDENT, 0, false, polys);
+  const f = v => Math.round(v * 10) / 10;
+  return polys.map(p => "M" + p.map(q => f(q[0]*scale) + " " + f(-q[1]*scale)).join("L") + "Z").join("");
+}
+
+root.GlyphProfiles = { YS: YS, NY: NY, FAR: FAR, profile: profile,
+                       gapProfile: gapProfile, svgPath: svgPath };
+})(window);
+
+</script>
+<script>
+/* Category and case for a glyph, worked out from its name and codepoint.
+ * Mirrors core/policy.py so the browser reaches the same answers.
+ */
+(function (root) {
+"use strict";
+const DIA = ["acute","grave","circumflex","tilde","macron","breve","dotaccent",
+  "dieresis","ring","cedilla","ogonek","caron","hungarumlaut","commaaccent",
+  "dotbelow","hook","stroke","bar","slash","descender","tail","dot","turn",
+  "upturn","verticalstroke","middlehook","acutecomb"].sort((a,b)=>b.length-a.length);
+
+/* legacy AGL names this format still uses for Cyrillic */
+const AFII_EXTRA = {
+  10051:0x402,10052:0x403,10053:0x404,10054:0x405,10055:0x406,10056:0x407,
+  10057:0x408,10058:0x409,10059:0x40A,10060:0x40B,10061:0x40C,10062:0x40E,
+  10145:0x40F,10050:0x490,10047:0x42D,
+  10099:0x452,10100:0x453,10101:0x454,10102:0x455,10103:0x456,10104:0x457,
+  10105:0x458,10106:0x459,10107:0x45A,10108:0x45B,10109:0x45C,10110:0x45E,
+  10193:0x45F,10098:0x491
+};
+function afii(name) {
+  const m = /^afii(\d+)$/.exec(name);
+  if (!m) return null;
+  const n = +m[1];
+  if (AFII_EXTRA[n]) return AFII_EXTRA[n];
+  // the run is not contiguous: Ё sits at 10023, out of alphabetical order
+  if (n >= 10017 && n <= 10022) return 0x0410 + (n - 10017);   // А..Е
+  if (n === 10023) return 0x0401;                              // Ё
+  if (n >= 10024 && n <= 10049) return 0x0416 + (n - 10024);   // Ж..Я
+  if (n >= 10065 && n <= 10070) return 0x0430 + (n - 10065);   // а..е
+  if (n === 10071) return 0x0451;                              // ё
+  if (n >= 10072 && n <= 10097) return 0x0436 + (n - 10072);   // ж..я
+  return null;
+}
+function stem(name) { const i = name.indexOf("."); return i < 0 ? name : name.slice(0, i); }
+function strip(s) {
+  let tail = "";
+  if (s.endsWith("-cy")) { s = s.slice(0, -3); tail = "-cy"; }
+  for (const d of DIA) if (s.endsWith(d) && s.length > d.length) return s.slice(0, -d.length) + tail;
+  return null;
+}
+function cpOf(index, name) {
+  const g = index[name];
+  if (g && g.unicode) {
+    // the Glyphs 3 source stores codepoints in decimal: `unicode = 65;` is A,
+    // not 0x65 - reading it as hex turns every capital into something else
+    const u = String(g.unicode).split(",")[0].trim();
+    const v = /^0x/i.test(u) ? parseInt(u, 16) : parseInt(u, 10);
+    if (!isNaN(v)) return v;
+  }
+  return afii(name);
+}
+function classify(cp) {
+  if (cp === null || cp === undefined) return null;
+  const ch = String.fromCodePoint(cp);
+  if (/\p{L}/u.test(ch)) return "letter";
+  if (/\p{N}/u.test(ch)) return "number";
+  if (/\p{M}/u.test(ch)) return "mark";
+  if (/\p{P}/u.test(ch)) return "punct";
+  return "other";
+}
+function category(index, name) {
+  let s = stem(name), guard = 0;
+  while (s && guard++ < 5) {
+    const c = classify(cpOf(index, s));
+    if (c) return c;
+    s = strip(s);
+  }
+  return "other";
+}
+function caseClass(index, name) {
+  if (/\.sc(\.|$)/.test(name)) return "sc";
+  let s = stem(name), guard = 0;
+  while (s && guard++ < 5) {
+    const cp = cpOf(index, s);
+    if (cp !== null && cp !== undefined) {
+      const ch = String.fromCodePoint(cp);
+      if (/\p{Lu}/u.test(ch)) return "upper";
+      if (/\p{Ll}/u.test(ch)) return "lower";
+      if (/\p{L}/u.test(ch)) return "lower";
+      return null;
+    }
+    s = strip(s);
+  }
+  const h = stem(name).charAt(0);
+  if (/[A-Za-zА-Яа-яЁё]/.test(h)) return h === h.toUpperCase() ? "upper" : "lower";
+  return null;
+}
+/* an accented letter is grouped by its base, even when the accent is drawn */
+function baseByName(index, name) {
+  const i = name.indexOf(".");
+  const s = i < 0 ? name : name.slice(0, i), suf = i < 0 ? "" : name.slice(i);
+  for (const d of DIA) {
+    if (s.endsWith(d) && s.length > d.length) {
+      const cand = s.slice(0, -d.length) + suf;
+      if (index[cand]) return cand;
+    }
+  }
+  return null;
+}
+const NOKERN_RULES = [
+  [/^_/, "компонентная заготовка"],
+  [/\.tf(\.|$)/, "табличная цифра"],
+  [/\.tosf(\.|$)/, "табличная минускульная"],
+  [/^swash\d/, "отдельный росчерк"]
+];
+function nokernReason(name) {
+  for (const [re, why] of NOKERN_RULES) if (re.test(name)) return why;
+  return null;
+}
+root.GlyphMeta = { category: category, caseClass: caseClass, baseByName: baseByName,
+                   nokernReason: nokernReason };
+})(window);
+
+</script>
+<script>
+/* Put kerning groups back into a .glyphs file.
+ *
+ * Rewriting the whole source would mean re-serialising every construct Glyphs
+ * knows, and any gap in that would quietly damage the font.  Instead we edit the
+ * two lines per glyph that actually change and leave every other byte untouched.
+ */
+(function (root) {
+"use strict";
+
+const q = s => /^[A-Za-z_][A-Za-z0-9_.\-]*$/.test(s) ? s : '"' + s.replace(/"/g, '\\"') + '"';
+
+function findGlyphBlocks(text) {
+  const at = {};
+  const re = /\nglyphname = ("(?:[^"\\]|\\.)*"|[^;\n]+);/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    let name = m[1];
+    if (name.charAt(0) === '"') name = name.slice(1, -1).replace(/\\(.)/g, "$1");
+    // scalar properties run until this glyph's layers list starts
+    const end = text.indexOf("\nlayers = (", m.index);
+    at[name] = { start: m.index, propEnd: end < 0 ? m.index + m[0].length : end,
+                 headEnd: m.index + m[0].length };
+  }
+  return at;
+}
+
+/* mapping: {R:{glyph:group}, L:{glyph:group}} — R is kernRight, L is kernLeft */
+function apply(text, mapping) {
+  const blocks = findGlyphBlocks(text);
+  const edits = [];                       // {pos, len, text}
+  const names = new Set(Object.keys(mapping.R || {}).concat(Object.keys(mapping.L || {})));
+  let touched = 0, missing = [];
+
+  for (const name of names) {
+    const b = blocks[name];
+    if (!b) { missing.push(name); continue; }
+    const window = text.slice(b.headEnd, b.propEnd);
+    for (const [side, key] of [["R", "kernRight"], ["L", "kernLeft"]]) {
+      const val = (mapping[side] || {})[name];
+      if (val === undefined) continue;
+      const re = new RegExp("\\n" + key + " = (\"(?:[^\"\\\\]|\\\\.)*\"|[^;\\n]+);");
+      const hit = re.exec(window);
+      if (val === null || val === "") {                       // clear the group
+        if (hit) edits.push({ pos: b.headEnd + hit.index, len: hit[0].length, text: "" });
+      } else if (hit) {
+        edits.push({ pos: b.headEnd + hit.index, len: hit[0].length,
+                     text: "\n" + key + " = " + q(val) + ";" });
+      } else {
+        edits.push({ pos: b.headEnd, len: 0, text: "\n" + key + " = " + q(val) + ";" });
+      }
+      touched++;
+    }
+  }
+  edits.sort((a, b2) => b2.pos - a.pos);                      // back to front
+  let out = text;
+  for (const e of edits) out = out.slice(0, e.pos) + e.text + out.slice(e.pos + e.len);
+  return { text: out, written: touched, missing: missing };
+}
+
+root.GlyphsWrite = { apply: apply, findGlyphBlocks: findGlyphBlocks };
+})(window);
+
+</script>
+<script>
+/* Turn a dropped .glyphs file into the data the assistant UI expects.
+ * Same shape analyze.py produced, built here so nothing has to be installed.
+ */
+(function (root) {
+"use strict";
+const STEP = 3;
+
+function build(text, masterIndex, onProgress) {
+  const F = root.GlyphsFile.readFont(text);
+  const P = root.GlyphProfiles, M = root.GlyphMeta;
+  const master = F.masters[masterIndex] || F.masters[0];
+  const mm = root.GlyphsFile.masterMetrics(F, master);
+  const index = {};
+  F.glyphs.forEach(g => index[g.name] = g);
+
+  const kernable = F.glyphs.filter(g => {
+    if (!g.export) return false;
+    const L = g.layers.find(l => l.layerId === master.id) ||
+              g.layers.find(l => l.associated === master.id);
+    return !!(L && L.shapes && L.shapes.length);
+  });
+  const live = kernable.filter(g => !M.nokernReason(g.name));
+
+  const cat = {}, cse = {};
+  for (const g of live) {
+    cat[g.name] = M.category(index, g.name);
+    cse[g.name] = cat[g.name] === "letter" ? M.caseClass(index, g.name) : null;
+  }
+
+  const data = {
+    family: F.familyName, master: master.name, glyphs: live.length,
+    ymin: P.YS[0], ystep: (P.YS[1] - P.YS[0]) * STEP,
+    xh: mm.xHeight, cap: mm.capHeight, desc: mm.descender,
+    far: P.FAR, floor: 40, cat: cat, case: cse, sides: {}, paths: {}
+  };
+
+  const scale = 0.09 * (1000 / (mm.capHeight || 700));
+  let done = 0;
+  for (const g of live) {
+    const d = P.svgPath(F, index, g.name, master.id, scale);
+    const L = g.layers.find(l => l.layerId === master.id) ||
+              g.layers.find(l => l.associated === master.id);
+    if (d) data.paths[g.name] = [d, Math.round(L.width * scale * 10) / 10];
+    if (onProgress && ++done % 300 === 0) onProgress("контуры", done, live.length);
+  }
+
+  for (const side of ["R", "L"]) {
+    const prof = {}, group = {}, ungrouped = [];
+    for (const g of live) {
+      const b = M.baseByName(index, g.name);
+      const src = b && index[b] ? b : g.name;
+      const p = P.profile(F, index, src, master.id, true);
+      if (!p) continue;
+      prof[g.name] = P.gapProfile(p, side);
+      const grp = side === "R" ? g.kernRight : g.kernLeft;
+      if (grp) group[g.name] = grp; else ungrouped.push(g.name);
+    }
+    const key = new Map();
+    for (const n of Object.keys(prof)) {
+      const k = prof[n].filter((_, i) => i % STEP === 0).map(v => Math.round(v)).join(",");
+      if (!key.has(k)) key.set(k, []);
+      key.get(k).push(n);
+    }
+    const members = [...key.values()];
+    data.sides[side] = {
+      members: members,
+      profile: members.map(m => prof[m[0]].filter((_, i) => i % STEP === 0).map(v => Math.round(v))),
+      group: group, ungrouped: ungrouped.sort(),
+      classes: []
+    };
+    if (onProgress) onProgress("профили " + side, 1, 1);
+  }
+  data._text = text;
+  data._masters = F.masters.map(m => m.name);
+  return data;
+}
+root.GlyphsLoader = { build: build };
+})(window);
+
+</script>
+<script>
+window.startAssistant=function(){
+const D=window.ASSIST,$=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const KEY="kernassist:v2:"+(D.family||"")+":"+(D.master||"");
+let side="R", made={R:{},L:{}}, seed=null, cand=null, picked=new Set(), qRaw="", showAll=false;
+const qKey=()=>qRaw.trim().toLowerCase();
+let caps=false, view="work";
+let learn=true, nprops=[];
+const csel=new Set(), clexp=new Set();
+let clqRaw="", susOnly=false;
+/* what you typed is not the key you search with: writing the lowercased key back
+   into the field is what turned every capital into a small letter */
+const clqKey=()=>clqRaw.trim().toLowerCase();
+let suspect={}, susKey="";
+const npDismiss=new Set();
+let fdis={};        /* findings marked as understood, kept between sessions */
+try{learn=localStorage.getItem("kernassist:learn")!=="0";}catch(e){}
+try{caps=localStorage.getItem("kernassist:caps")==="1";}catch(e){}
+try{const s=localStorage.getItem(KEY);
+  if(s){const o=JSON.parse(s);made=Object.assign({R:{},L:{}},o.made||{});fdis=o.fdis||{};}
+}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({made,fdis}));}catch(e){}};
+/* undo keeps whole snapshots: the state is a few thousand short strings, so
+   copying it is cheaper than replaying inverse operations correctly */
+const hist=[];
+function snapshot(label){
+  hist.push({made:JSON.parse(JSON.stringify(made)),label:label});
+  if(hist.length>40)hist.shift();
+}
+function undo(){
+  const h=hist.pop();
+  if(!h)return;
+  made=h.made;
+  const took=[seed].concat([...picked]);
+  const maxd=cand&&cand.length
+    ? Math.max(3,...cand.filter(r=>picked.has(r[1])).map(r=>r[0])) : 6;
+  const anchor=seed;
+  seed=null;cand=null;picked.clear();
+  save();
+  nprops=nextProps(took,nm,anchor,maxd);
+  render();renderNext(true);
+}
+document.title="Ассистент — "+(D.family||"");
+$("sub").textContent=(D.family||"")+" · мастер "+(D.master||"")+" · "+D.glyphs+" глифов";
+
+/* ---------- one row of the matrix per pick, never the whole thing ---------- */
+const W={}, REP={};
+function weights(s){
+  if(W[s])return W[s];
+  const K=D.sides[s].profile[0].length, w=new Float32Array(K);
+  for(let i=0;i<K;i++){
+    const y=D.ymin+i*D.ystep;
+    w[i]=y>D.cap?0.12:y>D.xh?0.75:y>=0?1:y>=D.desc?0.30:0.072;
+  }
+  return (W[s]=w);
+}
+function repOf(s){
+  if(REP[s])return REP[s];
+  const ix={}, mem=D.sides[s].members;
+  for(let i=0;i<mem.length;i++) for(const g of mem[i]) ix[g]=i;
+  return (REP[s]=ix);
+}
+function distRow(s,glyph){
+  const P=D.sides[s].profile, ix=repOf(s)[glyph];
+  if(ix===undefined)return null;
+  const w=weights(s), a=P[ix], K=a.length, F=D.floor||40;
+  let ws=0; for(let k=0;k<K;k++)ws+=w[k];
+  const out=new Float32Array(P.length);
+  for(let i=0;i<P.length;i++){
+    const b=P[i]; let acc=0;
+    for(let k=0;k<K;k++){
+      const x=Math.min(Math.abs(a[k]),400), y=Math.min(Math.abs(b[k]),400);
+      const den=Math.max((x+y)*0.5,F);
+      acc+=w[k]*Math.abs(Math.min(Math.max(a[k],-400),400)-Math.min(Math.max(b[k],-400),400))/den;
+    }
+    out[i]=acc/ws*100;
+  }
+  return out;
+}
+
+function placed(){return made[side];}
+function inCase(){
+  const done=placed(), S=D.sides[side];
+  let all=showAll
+    ? Object.keys(D.cat||{}).filter(n=>!(n in done))
+    : S.ungrouped.filter(n=>!(n in done));
+  all=all.slice().sort((a,b)=>a.length-b.length||(a<b?-1:1));
+  const k=qKey();
+  if(k)all=all.filter(n=>n.toLowerCase().includes(k));
+  return all;
+}
+/* who already answers to this name - in the font, or from this session */
+function collision(name){
+  const S=D.sides[side], done=placed();
+  return {font:Object.keys(S.group).filter(g=>S.group[g]===name&&!(g in done)),
+          mine:Object.keys(done).filter(g=>done[g]===name)};
+}
+function chip(n,cls,moveTo){
+  const p=D.paths[n];
+  const extra=moveTo?' data-move="'+esc(moveTo)+'"':'';
+  if(!p)return '<span class="chip txt '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+
+    ' title="'+esc(n)+'">'+esc(n).slice(0,12)+'</span>';
+  const w=Math.max(p[1]||60,18);
+  return '<span class="chip '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+' title="'+esc(n)+'">'+
+    '<svg viewBox="-9 -104 '+(w+18).toFixed(0)+' 140" preserveAspectRatio="xMidYMid meet">'+
+    '<path d="'+p[0]+'"/></svg></span>';
+}
+/* the search box lives inside the block it filters, so redrawing the list tears
+   out the very input being typed into.  Put the caret back where it was. */
+function keepFocus(fn){
+  const a=document.activeElement, id=a&&a.id;
+  let pos=null;
+  try{pos=a&&a.selectionStart;}catch(e){}
+  fn();
+  if(!id)return;
+  const el=$(id);
+  if(!el)return;
+  el.focus();
+  if(pos!==null){try{el.setSelectionRange(pos,pos);}catch(e){}}
+}
+const plural=(n,a,b,c)=>{const m=n%100,k=n%10;return m>=11&&m<=14?c:k===1?a:k>=2&&k<=4?b:c;};
+
+/* ---------- the case: pick a glyph to start a class from ---------- */
+function renderCase(){
+  const all=inCase();
+  $("stagelbl").textContent="Касса — выберите глиф, с которого начать класс";
+  $("stage").innerHTML='<div class="pane">'+
+    '<input class="srch" id="q" placeholder="Найти глиф…" value="'+esc(qRaw)+
+    '" spellcheck="false" autocomplete="off">'+
+    '<div class="togs">'+
+    '<label class="tog"><input type="checkbox" id="showall"'+(showAll?" checked":"")+
+    '> показывать глифы, у которых класс уже есть</label>'+
+    '<label class="tog"><input type="checkbox" id="capson"'+(caps?" checked":"")+
+    '> подписи под глифами</label></div>'+
+    '<div class="hint" style="margin-bottom:9px">'+(showAll?"Глифов":"Без класса")+
+    ': <b>'+all.length+'</b>. Нажмите на глиф — ассистент подберёт к нему остальные.</div>'+
+    '<div class="case'+(caps?" cap":"")+'" id="case">'+all.slice(0,700).map(n=>chip(n)).join("")+
+    (all.length>700?'<span class="chip txt">+'+(all.length-700)+'</span>':"")+'</div></div>';
+  $("q").addEventListener("input",e=>{qRaw=e.target.value;keepFocus(renderCase);});
+  $("showall").addEventListener("change",e=>{showAll=e.target.checked;renderCase();});
+  $("capson").addEventListener("change",e=>{
+    caps=e.target.checked;
+    try{localStorage.setItem("kernassist:caps",caps?"1":"0");}catch(err){}
+    render();});
+}
+
+/* ---------- candidates for a seed, in bands of closeness ---------- */
+function startFrom(n){
+  seed=n;
+  const row=distRow(side,n);
+  if(!row){renderCase();return;}
+  const mem=D.sides[side].members, done=placed();
+  const cat=D.cat||{}, cse=D.case||{};
+  const out=[];
+  for(let i=0;i<mem.length;i++){
+    for(const g of mem[i]){
+      if(g===n||g in done)continue;
+      if(cat[g]!==cat[n])continue;
+      if(cat[n]==="letter"&&cse[g]&&cse[n]&&cse[g]!==cse[n])continue;
+      if(row[i]<=14)out.push([row[i],g,!!D.sides[side].group[g]]);
+    }
+  }
+  out.sort((a,b)=>a[0]-b[0]);
+  cand=out;
+  picked=new Set(out.filter(r=>r[0]<=6&&!r[2]).map(r=>r[1]));
+  renderCandidates();
+}
+function renderCandidates(){
+  const bands=[[0,3,"Практически одно и то же"],[3,6,"Очень близко"],
+               [6,10,"Похоже, стоит посмотреть"],[10,14,"На грани"]];
+  const name=seed.split(".")[0];
+  $("stagelbl").textContent="Класс из "+seed;
+  let html='<div class="pane"><div class="q">Класс <b id="nmv">@'+esc(name)+
+    '</b> — кого взять к <b>'+esc(seed)+'</b>?</div>'+
+    '<div class="why">Ассистент сравнил профиль просвета со всеми глифами того же рода и регистра. '+
+    'Ближние отмечены заранее, остальные — на ваше усмотрение. «В этот класс» у полосы '+
+    'создаёт класс сразу из неё, минуя выбор.</div>'+
+    '<div class="chips">'+chip(seed,"seed")+'</div>';
+  let any=false;
+  for(const [lo,hi,title] of bands){
+    const rows=cand.filter(r=>r[0]>=lo&&r[0]<hi);
+    if(!rows.length)continue;
+    any=true;
+    html+='<div class="band"><div class="bh"><span class="bt">'+title+'</span>'+
+      '<span class="bd">'+lo+'–'+hi+'% · '+rows.length+'</span>'+
+      '<button class="ba" data-band="'+lo+'">выбрать все</button>'+
+      '<button class="bg" data-take="'+lo+'">в этот класс</button></div>'+
+      '<div class="chips'+(caps?" cap":"")+' band-'+lo+'">'+rows.map(r=>
+        chip(r[1],(picked.has(r[1])?"on":"")+(r[2]?" off":""))).join("")+'</div></div>';
+  }
+  if(!any)html+='<div class="empty">Похожих не нашлось — класс останется из одного глифа. '+
+    'Это нормально: класс из одного работает так же, как его отсутствие.</div>';
+  html+='<div class="row"><input class="nm" id="nm" value="'+esc(name)+'">'+
+    '<button class="b main" id="ok">Создать класс</button>'+
+    '<button class="b" id="back">Назад в кассу</button></div>'+
+    '<div class="ac" id="ac"></div><div id="namewarn"></div>'+
+    '<div class="hint" style="margin-top:8px">Приглушённые уже состоят в другом классе — '+
+    'взяв их, вы перенесёте их сюда.</div></div>';
+  $("stage").innerHTML=html;
+  warnName(name);
+}
+/* every class name this font already answers to, with how many glyphs are in it */
+function classNames(){
+  const S=D.sides[side], done=placed(), c={};
+  for(const g in S.group){const n=S.group[g];if(!(g in done))c[n]=c[n]||{n:0,mine:false};}
+  for(const g in S.group){const n=S.group[g];if(!(g in done))c[n].n++;}
+  for(const g in done){const n=done[g];c[n]=c[n]||{n:0,mine:true};c[n].n++;c[n].mine=true;}
+  return c;
+}
+let acIdx=-1, acList=[];
+function suggest(txt){
+  const box=$("ac"); if(!box)return;
+  const q2=(txt||"").trim().toLowerCase();
+  if(!q2){box.innerHTML="";acList=[];acIdx=-1;return;}
+  const all=classNames();
+  acList=Object.keys(all)
+    .filter(n=>n.toLowerCase().includes(q2)&&n.toLowerCase()!==q2)
+    .sort((a,b)=>{
+      const pa=a.toLowerCase().startsWith(q2)?0:1, pb=b.toLowerCase().startsWith(q2)?0:1;
+      return pa-pb||all[b].n-all[a].n||a.localeCompare(b);
+    }).slice(0,8);
+  acIdx=-1;
+  box.innerHTML=acList.map((n,i)=>
+    '<button data-ac="'+esc(n)+'">@'+esc(n)+
+    '<span class="s">'+(all[n].mine?"ваш":"в шрифте")+'</span>'+
+    '<span class="c">'+all[n].n+'</span></button>').join("");
+}
+function acPick(n){
+  const el=$("nm"); if(!el)return;
+  el.value=n; $("ac").innerHTML=""; acList=[]; acIdx=-1;
+  warnName(n);
+}
+/* say out loud what a name already means, so joining an existing class is a
+   decision rather than a side effect */
+function warnName(name){
+  const w=$("namewarn"); if(!w)return;
+  const c=collision(name);
+  if(!c.font.length&&!c.mine.length){w.innerHTML="";return;}
+  let html='<div class="warn">';
+  if(c.font.length)
+    html+='Класс <b>@'+esc(name)+'</b> уже есть в шрифте — в нём '+c.font.length+' '+
+      plural(c.font.length,"глиф","глифа","глифов")+
+      '. Выбранные присоединятся к ним, составы сложатся.'+
+      '<div class="chips">'+c.font.slice(0,16).map(n=>chip(n)).join("")+
+      (c.font.length>16?'<span class="chip txt">+'+(c.font.length-16)+'</span>':"")+'</div>';
+  if(c.mine.length)
+    html+=(c.font.length?'<div style="margin-top:8px"></div>':"")+
+      'Вы уже создавали класс <b>@'+esc(name)+'</b> в этой сессии ('+c.mine.length+
+      '). Новые глифы добавятся к нему — второго класса с тем же именем не появится.';
+  w.innerHTML=html+'</div>';
+}
+function commit(){
+  const nm=($("nm").value||seed.split(".")[0]).trim();
+  snapshot("создание @"+nm+" ("+(picked.size+1)+")");
+  const done=placed();
+  done[seed]=nm;
+  picked.forEach(n=>done[n]=nm);
+  seed=null;cand=null;picked.clear();
+  save();render();
+}
+
+/* ---------- what already exists, and what looks wrong in it ---------- */
+/* ---- read the last decision and guess what it implies ----
+   The signal is usually in the names: someone who files five .swsh01 glyphs
+   together means the rest of them too. */
+function lcs(a,b){
+  const m=a.length,n=b.length;
+  let prev=new Int32Array(n+1),cur=new Int32Array(n+1),best="",bl=0;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      cur[j]=a.charCodeAt(i-1)===b.charCodeAt(j-1)?prev[j-1]+1:0;
+      if(cur[j]>bl){bl=cur[j];best=a.slice(i-bl,i);}
+    }
+    const t2=prev;prev=cur;cur=t2;cur.fill(0);
+  }
+  return best;
+}
+function nextProps(names,target,anchor,maxd){
+  if(!learn||names.length<2)return [];
+  const done=placed(), all=D.cat||{}, cse=D.case||{}, out=[];
+  const row=anchor?distRow(side,anchor):null;
+  const ix=repOf(side), lim=Math.max(maxd||6,4)*1.25;
+
+  // fragments shared by PAIRS, not folded over everything: "H M N" collapses to
+  // a single letter and says nothing, while the pair El-cy / Em-cy still yields
+  // "-cy" and a real suggestion
+  const cands=new Map();
+  const sample=names.slice(0,24);
+  for(let i=0;i<sample.length;i++)
+    for(let j=i+1;j<sample.length;j++){
+      const f=lcs(sample[i],sample[j]);
+      if(f.length>=3)cands.set(f,(cands.get(f)||0)+1);
+    }
+  for(const n of names){const d=n.indexOf(".");if(d>0)cands.set(n.slice(d),cands.get(n.slice(d))||1);}
+
+  const ranked=[...cands.keys()].map(f=>{
+    const support=names.filter(n=>n.indexOf(f)>=0).length;
+    const hits=Object.keys(all).filter(n=>{
+      if(n.indexOf(f)<0||(n in done))return false;
+      if(all[n]!==all[names[0]]||(cse[n]||null)!==(cse[names[0]]||null))return false;
+      if(!row)return true;
+      const i=ix[n];
+      return i!==undefined&&row[i]<=lim;
+    });
+    return {f:f,support:support,hits:hits};
+  }).filter(r=>r.support>=2&&r.hits.length&&!npDismiss.has("f|"+target+"|"+r.f))
+    .sort((a,b)=>b.support-a.support||b.hits.length-a.hits.length);
+
+  const taken=new Set();
+  for(const r of ranked){
+    if(r.hits.every(h=>taken.has(h)))continue;
+    r.hits.forEach(h=>taken.add(h));
+    out.push({kind:"frag",frag:r.f,target:target,hits:r.hits,lim:Math.round(lim)});
+    if(out.length>=3)break;
+  }
+
+  const ups=names.filter(n=>cse[n]==="upper");
+  if(ups.length>=2){
+    const to=scOf(target)||(target.toLowerCase()+".sc");
+    const hits=ups.map(scOf).filter(s=>s&&s in all&&classOf(s)!==to);
+    if(hits.length&&!npDismiss.has("c|"+to))
+      out.push({kind:"case",target:to,from:target,hits:hits});
+  }
+  return out;
+}
+function renderNext(quiet){
+  const box=$("nextprops");
+  if(!nprops.length){
+    box.innerHTML=quiet
+      ? '<div class="np" style="border-color:var(--line-2)"><span class="t" '+
+        'style="font-size:12.5px;color:var(--muted)">Продолжений не нашлось: '+
+        'у размещённых нет общего в именах, а капительные пары уже на месте.</span></div>'
+      : "";
+    return;}
+  box.innerHTML=nprops.map((p,i)=>{
+    const txt=p.kind==="frag"
+      ? 'Вы отправили в <b>@'+esc(p.target)+'</b> несколько глифов с <b>'+esc(p.frag)+
+        '</b>. Ещё <b>'+p.hits.length+'</b> таких же по имени и близких по форме (до '+p.lim+'%) — туда же?'
+      : 'В <b>@'+esc(p.from)+'</b> ушли прописные. Их капительные пары можно свести '+
+        'в <b>@'+esc(p.target)+'</b> — <b>'+p.hits.length+'</b> знаков.';
+    return '<div class="np"><div class="h"><span class="t">'+txt+'</span>'+
+      '<span class="a"><button class="y" data-np="'+i+'">Да, туда</button>'+
+      '<button data-npn="'+i+'">Не надо</button></span></div>'+
+      '<div class="chips'+(caps?" cap":"")+'">'+
+      p.hits.slice(0,26).map(n=>chip(n)).join("")+
+      (p.hits.length>26?'<span class="chip txt">+'+(p.hits.length-26)+'</span>':"")+
+      '</div></div>';
+  }).join("");
+}
+/* uppercase and small caps should mirror each other; where they do not, the
+   difference is usually an oversight rather than a decision */
+function scOf(n){
+  if(/\.sc(\.|$)/.test(n))return null;
+  const i=n.indexOf(".");
+  return (i<0?n:n.slice(0,i)).toLowerCase()+(i<0?"":n.slice(i))+".sc";
+}
+function classOf(n){const d=placed();return d[n]||D.sides[side].group[n]||null;}
+function tokens(n){const p=n.split(".");return [p[0],p.slice(1)];}
+function extraToken(a,b){
+  const [sa,fa]=tokens(a), [sb,fb]=tokens(b);
+  if(sa!==sb||fb.length!==fa.length+1)return null;
+  let j=0;
+  for(let i=0;i<fb.length;i++){
+    if(j<fa.length&&fb[i]===fa[j]){j++;continue;}
+    return fb.slice(i+1).join(".")===fa.slice(j).join(".")?{tok:fb[i],at:i}:null;
+  }
+  return null;
+}
+function withToken(m,tok,at){
+  const [s,f]=tokens(m), c=f.slice();
+  c.splice(Math.min(at,c.length),0,tok);
+  return s+(c.length?"."+c.join("."):"");
+}
+/* two classes are twins when one is the other wearing a suffix: @Y and @Y.alt01,
+   @H and @h.sc.  Their memberships should mirror, and where they do not the
+   difference is nearly always an oversight. */
+function pairRows(){
+  const by=liveClasses(), all=D.cat||{}, cse=D.case||{}, out=[];
+  const names=Object.keys(by);
+
+  for(const cls of names){
+    const ups=by[cls].filter(x=>cse[x]==="upper");
+    if(ups.length<2)continue;
+    const rows=ups.map(u=>{
+      const s=scOf(u);
+      return {up:u, sc:(s&&s in all)?s:null, cls:(s&&s in all)?classOf(s):null};
+    });
+    const tally={};
+    rows.forEach(r=>{if(r.cls)tally[r.cls]=(tally[r.cls]||0)+1;});
+    const want=Object.keys(tally).sort((a,b)=>tally[b]-tally[a])[0]||null;
+    out.push({kind:"case",cls:cls,want:want,
+      target:want||scOf(cls)||(cls.toLowerCase()+".sc"),
+      rows:rows, off:rows.filter(r=>r.sc&&r.cls!==want).length,
+      gone:rows.filter(r=>!r.sc).length, n:ups.length,
+      label:"прописные ↔ капитель"});
+  }
+
+  for(const a of names){
+    for(const b of names){
+      if(a===b)continue;
+      const e=extraToken(a,b);
+      if(!e)continue;
+      const rows=by[a].map(m=>{
+        const s=withToken(m,e.tok,e.at);
+        return {up:m, sc:(s in all)?s:null, cls:(s in all)?classOf(s):null};
+      });
+      const off=rows.filter(r=>r.sc&&r.cls!==b).length;
+      const gone=rows.filter(r=>!r.sc).length;
+      if(!rows.length)continue;
+      out.push({kind:"suffix",cls:a,want:b,target:b,rows:rows,off:off,gone:gone,
+        n:by[a].length,label:"«."+e.tok+"» от @"+a});
+    }
+  }
+  out.sort((x,y)=>(y.off+y.gone)-(x.off+x.gone)||y.n-x.n);
+  return out;
+}
+function renderPairs(){
+  const list=pairRows();
+  $("stagelbl").textContent="Прописные и капитель — попарно";
+  if(!list.length){
+    $("stage").innerHTML='<div class="pane"><div class="empty">Классов с прописными не нашлось.</div></div>';
+    return;}
+  $("stage").innerHTML=list.slice(0,24).map(p=>{
+    const ok=!p.off&&!p.gone;
+    return '<div class="pane" style="margin-bottom:12px'+
+      (ok?'':';border-color:var(--warn)')+'">'+
+      '<div class="hdr"><span class="nm2">@'+esc(p.cls)+'</span>'+
+      '<span class="vd">'+p.n+' знаков ↔ '+
+      (p.want?'<b class="nm2" style="font-size:12.5px">@'+esc(p.want)+'</b>':'ни одного класса')+
+      ' · '+esc(p.label)+'</span>'+
+      (ok?'<span class="vd">состав совпадает</span>'
+        :'<span class="vd bad">'+
+          (p.off?p.off+' в другом классе':'')+(p.off&&p.gone?' · ':'')+
+          (p.gone?p.gone+' без капительной пары':'')+'</span>')+
+      (p.off?'<button class="fix" data-fix="'+esc(p.cls)+'" data-to="'+esc(p.target)+
+        '">Свести '+p.off+' в @'+esc(p.target)+'</button>':'')+
+      '</div><div class="pairs">'+
+      (clexp.has("pr:"+p.cls)?p.rows:p.rows.slice(0,80)).map(r=>
+        '<div class="pr">'+chip(r.up)+
+        (r.sc?chip(r.sc,r.cls===p.target?"":"other",r.cls!==p.target?p.target:null)
+             :'<span class="slot" title="капительной пары нет"></span>')+
+        (r.sc&&r.cls!==p.target?'<span class="lab">'+esc(r.cls||"—")+'</span>':'')+
+        '</div>').join("")+
+      (p.rows.length>80
+        ? '<span class="chip txt more" data-more2="pr:'+esc(p.cls)+'">'+
+          (clexp.has("pr:"+p.cls)?"свернуть":"+"+(p.rows.length-80))+'</span>'
+        : "")+
+      '</div></div>';
+  }).join("");
+}
+/* class-to-class closeness: one matrix row per class, not the whole matrix */
+const NOCLASS="\u0431\u0435\u0437 \u043a\u043b\u0430\u0441\u0441\u0430";
+/* every class, including NOKERN and the ones nobody has touched.  `all` also
+   buckets the unassigned, so the view accounts for every glyph in the font. */
+function liveClasses(all){
+  const by={};
+  for(const g in (D.cat||{})){
+    const c=classOf(g);
+    if(c){ if(c!=="NOKERN"||all)(by[c]=by[c]||[]).push(g); }
+    else if(all)(by[NOCLASS]=by[NOCLASS]||[]).push(g);
+  }
+  return by;
+}
+function similarClasses(){
+  const by=liveClasses(), ix=repOf(side), cat=D.cat||{}, cse=D.case||{};
+  const rep={};
+  for(const c of Object.keys(by)){
+    const m=by[c].filter(g=>ix[g]!==undefined);
+    if(m.length)rep[c]=m.slice().sort((a,b)=>a.length-b.length||(a<b?-1:1))[0];
+  }
+  const keys=Object.keys(rep).slice(0,220), rows=[];
+  for(let i=0;i<keys.length;i++){
+    const a=keys[i], r=distRow(side,rep[a]);
+    if(!r)continue;
+    for(let j=i+1;j<keys.length;j++){
+      const b=keys[j], ri=ix[rep[b]];
+      if(ri===undefined)continue;
+      if(cat[rep[a]]!==cat[rep[b]])continue;
+      if(cse[rep[a]]&&cse[rep[b]]&&cse[rep[a]]!==cse[rep[b]])continue;
+      const d=r[ri];
+      if(d<=12&&!fdis["sim|"+side+"|"+a+"|"+b])rows.push({a:a,b:b,d:d,ma:by[a],mb:by[b]});
+    }
+  }
+  rows.sort((x,y)=>x.d-y.d);
+  return rows.slice(0,30);
+}
+function renderSim(){
+  const rows=similarClasses();
+  $("stagelbl").textContent="Похожие классы — кандидаты на объединение";
+  if(!rows.length){
+    $("stage").innerHTML='<div class="pane"><div class="empty">Близких классов не нашлось: '+
+      'ближайшая пара дальше 12%.</div></div>';return;}
+  $("stage").innerHTML=rows.map(r=>
+    '<div class="pane" style="margin-bottom:12px"><div class="hdr">'+
+    '<span class="nm2">@'+esc(r.a)+'</span><span class="vd">и</span>'+
+    '<span class="nm2">@'+esc(r.b)+'</span>'+
+    '<span class="simd">'+r.d.toFixed(1)+'%</span>'+
+    '<span class="a" style="margin-left:auto;display:flex;gap:6px">'+
+    '<button class="fix" data-sim="'+esc(r.b)+'" data-to="'+esc(r.a)+'">Свести в @'+esc(r.a)+'</button>'+
+    '<button class="fix" style="background:var(--surface-2);color:var(--ink);border-color:var(--line-2)" '+
+    'data-sim="'+esc(r.a)+'" data-to="'+esc(r.b)+'">в @'+esc(r.b)+'</button>'+
+    '<button class="fix" style="background:transparent;color:var(--muted);border-color:var(--line-2)" '+
+    'data-simno="'+esc(r.a)+"|"+esc(r.b)+'">Разные</button>'+
+    '</span></div><div class="simrow">'+
+    ['a','b'].map(k=>{
+      const nm=r[k], mem=r["m"+k];
+      return '<div class="simcol"><div class="ct">@'+esc(nm)+'<span>'+mem.length+'</span></div>'+
+        '<div class="chips'+(caps?" cap":"")+'">'+
+        (clexp.has("sim:"+nm)?mem:mem.slice(0,24)).map(n=>chip(n)).join("")+
+        (mem.length>24
+          ? '<span class="chip txt more" data-more2="sim:'+esc(nm)+'">'+
+            (clexp.has("sim:"+nm)?"свернуть":"+"+(mem.length-24))+'</span>'
+          : "")+'</div></div>';
+    }).join("")+'</div></div>').join("");
+}
+/* who looks out of place in their own class - by drawing, or by the shape of
+   their name.  Recomputed only when the membership actually changed. */
+function findSuspects(by){
+  const key=side+"|"+Object.keys(by).map(c=>c+":"+by[c].length).join(",");
+  if(key===susKey)return suspect;
+  const ix=repOf(side), cat=D.cat||{}, cse=D.case||{}, out={};
+  const suf=n=>{const i=n.indexOf(".");return i<0?"":n.slice(i);};
+  for(const c of Object.keys(by)){
+    const mem=by[c].filter(g=>ix[g]!==undefined);
+    if(mem.length<3)continue;
+    const rep=mem.slice().sort((a,b)=>a.length-b.length||(a<b?-1:1))[0];
+    const row=distRow(side,rep);
+    if(row){
+      const ds=mem.map(g=>row[ix[g]]).sort((a,b)=>a-b);
+      const med=ds[Math.floor(ds.length/2)];
+      const lim=Math.max(10,med*2.5);
+      for(const g of mem){
+        const d=row[ix[g]];
+        if(d>lim)out[g]="по форме: "+d.toFixed(0)+"% от ядра класса";
+      }
+    }
+    const tally=(f)=>{const t2={};mem.forEach(g=>{const v=f(g);t2[v]=(t2[v]||0)+1;});
+      const k=Object.keys(t2).sort((a,b)=>t2[b]-t2[a])[0];
+      return [k,t2[k]/mem.length];};
+    const [ds2,dsShare]=tally(suf);
+    const [dc,dcShare]=tally(g=>cse[g]||"-");
+    const [dk,dkShare]=tally(g=>cat[g]||"-");
+    for(const g of mem){
+      const why=[];
+      if(dsShare>=0.7&&suf(g)!==ds2)
+        why.push("по имени: суффикс «"+(suf(g)||"без суффикса")+"» против «"+(ds2||"без суффикса")+"»");
+      if(dcShare>=0.7&&(cse[g]||"-")!==dc)why.push("другой регистр");
+      if(dkShare>=0.7&&(cat[g]||"-")!==dk)why.push("другой род");
+      if(why.length)out[g]=(out[g]?out[g]+" · ":"")+why.join(" · ");
+    }
+  }
+  susKey=key;suspect=out;
+  return out;
+}
+/* how sound is each class that already exists?  spread is the distance from the
+   class's own core to its furthest member, so a high number means somebody in
+   there does not belong. */
+let auCache=null, auKey="";
+function auditRows(){
+  const by=liveClasses();
+  const key=side+"|"+Object.keys(by).map(c=>c+":"+by[c].length).join(",");
+  if(key===auKey)return auCache;
+  const ix=repOf(side), out=[];
+  for(const c of Object.keys(by)){
+    const m=by[c].filter(g=>ix[g]!==undefined);
+    if(m.length<2)continue;
+    const rep=m.slice().sort((a,b)=>a.length-b.length||(a<b?-1:1))[0];
+    const row=distRow(side,rep);
+    if(!row)continue;
+    const list=m.map(g=>[row[ix[g]],g]).sort((a,b)=>b[0]-a[0]);
+    out.push({cls:c,n:by[c].length,rep:rep,spread:list[0][0],worst:list[0][1],list:list});
+  }
+  out.sort((a,b)=>b.spread-a.spread);
+  auKey=key;auCache=out;
+  return out;
+}
+function renderAudit(){
+  const rows=auditRows().filter(r=>!fdis["au|"+side+"|"+r.cls]);
+  const by=liveClasses(true);
+  const singles=Object.keys(by).filter(c=>c!==NOCLASS&&by[c].length===1).length;
+  const none=(by[NOCLASS]||[]).length;
+  $("stagelbl").textContent="Проверка существующих классов";
+  const bad=rows.filter(r=>r.spread>20).length;
+  $("stage").innerHTML='<div class="ausum">'+
+    '<span>классов: <b>'+(Object.keys(by).length-(none?1:0))+'</b></span>'+
+    '<span>из одного глифа: <b>'+singles+'</b></span>'+
+    '<span>без класса: <b>'+none+'</b></span>'+
+    '<span>с разбросом свыше 20%: <b>'+bad+'</b></span>'+
+    '</div>'+
+    rows.slice(0,40).map((r,i)=>{
+      const w=Math.min(100,r.spread);
+      const col=r.spread>20?"var(--warn)":"var(--accent)";
+      const vis=(clexp.has("au:"+r.cls)?r.list:r.list.slice(0,30));
+      return '<div class="au'+(r.spread>20?" bad":"")+'">'+
+        '<div class="ah"><span class="n">@'+esc(r.cls)+'</span>'+
+        '<span class="m">'+r.n+' знаков · ядро '+esc(r.rep)+'</span>'+
+        '<span class="sp" style="color:'+col+'">разброс '+r.spread.toFixed(0)+'%</span>'+
+        '<span class="acts">'+
+        (r.spread>20?'<button data-drop2="'+esc(r.worst)+'">убрать '+esc(r.worst)+'</button>':'')+
+        '<button data-audok="'+esc(r.cls)+'">в порядке</button></span></div>'+
+        '<div class="bar2"><i style="width:'+w+'%;background:'+col+'"></i></div>'+
+        '<div class="chips'+(caps?" cap":"")+'">'+
+        vis.map(([d,g])=>chip(g,d>Math.max(10,r.spread*0.6)?"hot":"")).join("")+
+        (r.list.length>30
+          ? '<span class="chip txt more" data-more2="au:'+esc(r.cls)+'">'+
+            (clexp.has("au:"+r.cls)?"свернуть":"+"+(r.list.length-30))+'</span>'
+          : "")+'</div></div>';
+    }).join("")+
+    (rows.length>40?'<div class="hint">Показаны 40 худших из '+rows.length+'.</div>':"");
+}
+/* every class laid out, with any glyph clickable and re-assignable */
+function renderList(){
+  const by=liveClasses(true);
+  const sus=findSuspects(by);
+  const names=Object.keys(by).sort((a,b)=>
+    (a===NOCLASS?1:0)-(b===NOCLASS?1:0)||          /* the unassigned pile goes last */
+    by[b].length-by[a].length||a.localeCompare(b));
+  const k=clqKey();
+  let shown=names;
+  if(k){
+    // a class matched by its own name outranks one matched by a member
+    const byName=names.filter(c=>c.toLowerCase().includes(k));
+    const byMember=names.filter(c=>!c.toLowerCase().includes(k)&&
+      by[c].some(g=>g.toLowerCase().includes(k)));
+    shown=byName.concat(byMember);
+  }
+  if(susOnly)shown=shown.filter(c=>by[c].some(g=>sus[g]));
+  $("stagelbl").textContent="Все классы — выберите знак, чтобы переназначить";
+  $("stage").innerHTML='<div class="pane" style="margin-bottom:12px">'+
+    '<input class="srch" id="clq" placeholder="Найти класс или глиф…" value="'+esc(clqRaw)+
+    '" spellcheck="false" autocomplete="off">'+
+    '<label class="tog" style="margin:0 0 7px"><input type="checkbox" id="susonly"'+
+    (susOnly?" checked":"")+'> только классы с подозрительными знаками</label>'+
+    '<div class="hint">Классов: <b>'+(names.length-(by[NOCLASS]?1:0))+
+    '</b> · в классах <b>'+(Object.keys(D.cat||{}).length-(by[NOCLASS]||[]).length)+
+    '</b> знаков, без класса <b>'+(by[NOCLASS]||[]).length+
+    '</b> · подозрительных <b>'+Object.keys(sus).length+
+    '</b>. Обведённые охрой выбиваются по форме или по имени — наведите, чтобы узнать чем. '+
+    'Нажмите на знак, чтобы переназначить.'+
+    (k?' <b>Найдено классов: '+shown.length+'</b>, совпавшие знаки подсвечены.':'')+
+    '</div></div>'+
+    shown.slice(0,80).map(c=>{
+      const mem=by[c].slice().sort((a,b)=>a.length-b.length||(a<b?-1:1));
+      return '<div class="cl"'+(c===NOCLASS?' style="border-style:dashed"':'')+
+        '><div class="ch"><span class="n">'+(c===NOCLASS?"":"@")+esc(c)+'</span>'+
+        '<span class="c">'+mem.length+'</span>'+
+        (mem.filter(g=>sus[g]).length
+          ? '<span class="sus">'+mem.filter(g=>sus[g]).length+' подозрительных</span>':"")+
+        '<button class="here" data-here="'+esc(c)+'">сюда</button></div>'+
+        '<div class="chips'+(caps?" cap":"")+'">'+
+        (clexp.has(c)?mem:mem.slice(0,60))
+          .map(n=>chip(n,(csel.has(n)?"pick":"")+(sus[n]?" sus":"")+
+            (k&&n.toLowerCase().includes(k)?" hot":""))).join("")+
+        (mem.length>60
+          ? '<span class="chip txt more" data-more="'+esc(c)+'">'+
+            (clexp.has(c)?"свернуть":"+"+(mem.length-60))+'</span>'
+          : "")+
+        '</div></div>';
+    }).join("")+
+    (shown.length>80?'<div class="hint">Показано 80 из '+shown.length+
+      ' — уточните поиском.</div>':"");
+  const el=$("clq");
+  if(el)el.addEventListener("input",e=>{clqRaw=e.target.value;keepFocus(renderList);});
+  const so=$("susonly");
+  if(so)so.addEventListener("change",e=>{susOnly=e.target.checked;renderList();});
+  const dl=$("clslist");
+  const all=classNames();
+  dl.innerHTML=Object.keys(all).sort().map(n=>'<option value="'+esc(n)+'">').join("");
+  document.body.classList.toggle("moving",csel.size>0);
+  $("mvn").textContent=csel.size;
+}
+function moveSel(to){
+  if(!csel.size||!to)return;
+  const clear=(to===NOCLASS);
+  snapshot("перенос "+csel.size+(clear?" → без класса":" → @"+to));
+  const done=placed();
+  csel.forEach(g=>{ if(clear)delete done[g]; else done[g]=to; });
+  csel.clear();save();render();
+}
+/* the findings used to be computed in Python with numpy; doing them here drops
+   the dependency and, better, keeps them honest as you edit */
+const FIND={};
+function computeFindings(s){
+  if(FIND[s])return FIND[s];
+  const P=D.sides[s].profile, mem=D.sides[s].members, n=P.length, K=P[0].length;
+  const w=weights(s), cat=D.cat||{}, cse=D.case||{}, F=D.floor||40;
+  let ws=0; for(let k=0;k<K;k++)ws+=w[k];
+  const A=new Float32Array(n*K), N=new Float32Array(n*K);
+  for(let i=0;i<n;i++){
+    let sum=0,cnt=0;
+    for(let k=0;k<K;k++){
+      const v=Math.min(Math.max(P[i][k],-400),400);
+      A[i*K+k]=v;
+      if(P[i][k]<9000){sum+=v;cnt++;}
+    }
+    const m=cnt?sum/cnt:0;
+    for(let k=0;k<K;k++)N[i*K+k]=A[i*K+k]-m;
+  }
+  const dist=(X,i,j)=>{
+    let acc=0;
+    for(let k=0;k<K;k++){
+      const a=X[i*K+k], b=X[j*K+k];
+      acc+=w[k]*Math.abs(a-b)/Math.max((Math.abs(a)+Math.abs(b))*0.5,F);
+    }
+    return acc/ws*100;
+  };
+  const rep=mem.map(m=>m[0]), split=[], spacing=[];
+  for(let i=0;i<n;i++){
+    const ci=cat[rep[i]], ki=cse[rep[i]];
+    for(let j=i+1;j<n;j++){
+      if(cat[rep[j]]!==ci)continue;
+      const d=dist(A,i,j);
+      if(d<=3){split.push({i:i,j:j,d:d});continue;}
+      if((ci==="letter"||ci==="number")&&d>=18){
+        const sh=dist(N,i,j);
+        if(sh<=3)spacing.push({i:i,j:j,shape:sh,actual:d,
+                               same_case:(ki||null)===(cse[rep[j]]||null)});
+      }
+    }
+  }
+  split.sort((a,b)=>a.d-b.d);
+  spacing.sort((a,b)=>(b.actual-b.shape)-(a.actual-a.shape));
+  return (FIND[s]={split:split,spacing:spacing,rep:rep,mem:mem});
+}
+function renderFinds(){
+  const key=x=>side+"|"+x.a+"|"+x.b, live=[];
+  const C=computeFindings(side), S={split:[],spacing:[]};
+  for(const e of C.split){
+    const a=C.rep[e.i], b=C.rep[e.j], ca=classOf(a), cb=classOf(b);
+    if(!ca||!cb||ca===cb)continue;
+    S.split.push({a:a,b:b,d:+e.d.toFixed(1),also:C.mem[e.i].length+C.mem[e.j].length-2});
+    if(S.split.length>=40)break;
+  }
+  for(const e of C.spacing){
+    const a=C.rep[e.i], b=C.rep[e.j];
+    if(a.charAt(0)==="."||b.charAt(0)===".")continue;
+    S.spacing.push({a:a,b:b,shape:+e.shape.toFixed(1),actual:+e.actual.toFixed(1),
+                    same_case:e.same_case});
+    if(S.spacing.length>=40)break;
+  }
+  for(const x of S.split){
+    if(fdis[key(x)])continue;
+    if(classOf(x.a)&&classOf(x.a)===classOf(x.b))continue;   /* you already fixed it */
+    live.push({t:"split",x:x});
+    if(live.length>=14)break;
+  }
+  for(const x of S.spacing){
+    if(fdis[key(x)])continue;
+    live.push({t:"space",x:x});
+    if(live.length>=20)break;
+  }
+  if(!live.length){
+    $("finds").innerHTML='<div class="pane"><div class="hint">Неточностей не осталось — '+
+      'всё разобрано или отмечено как задуманное.</div></div>';
+    return;}
+  $("finds").innerHTML=live.map(f=>{
+    const x=f.x, k=esc(key(x)), ca=classOf(x.a), cb=classOf(x.b);
+    if(f.t==="split")
+      return '<div class="find"><div class="t"><b>'+esc(x.a)+'</b> и <b>'+esc(x.b)+
+        '</b> нарисованы одинаково ('+x.d+'%), но лежат в разных классах — <b>@'+esc(ca)+
+        '</b> и <b>@'+esc(cb)+'</b>'+(x.also?'. Ещё '+x.also+' таких пар':'')+'</div>'+
+        '<div class="chips">'+chip(x.a,"hot")+chip(x.b,"hot")+'</div><div class="act">'+
+        (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">'+esc(x.b)+' → @'+esc(ca)+'</button>':'')+
+        (cb?'<button data-mv="'+esc(x.a)+'" data-to="'+esc(cb)+'">'+esc(x.a)+' → @'+esc(cb)+'</button>':'')+
+        '<button class="no" data-fd="'+k+'">Так и надо</button></div></div>';
+    return '<div class="find"><div class="t"><b>'+esc(x.a)+'</b> и <b>'+esc(x.b)+
+      '</b> одной формы ('+x.shape+'%), но полуапроши расходятся на <b>'+x.actual+'%</b>'+
+      (x.same_case?'':' (разный регистр — возможно, так и надо)')+
+      '. Это ошибка спейсинга, а не группировки: чинится в шрифте, не здесь</div>'+
+      '<div class="chips">'+chip(x.a,"hot")+chip(x.b,"hot")+'</div><div class="act">'+
+      (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">всё равно в @'+esc(ca)+'</button>':'')+
+      '<button class="no" data-fd="'+k+'">Отметить разобранным</button></div></div>';
+  }).join("");
+}
+function renderMine(){
+  const done=placed(), by={};
+  for(const [g,c] of Object.entries(done)){(by[c]=by[c]||[]).push(g);}
+  const keys=Object.keys(by).sort();
+  $("mine").innerHTML=keys.length?keys.map(c=>
+    '<div class="g"><b>@'+esc(c)+'</b> · '+by[c].length+
+    '<button class="x" data-drop="'+esc(c)+'" title="убрать класс">✕</button></div>').join("")
+    :'<div class="empty">Пока ни одного. Начните с любого глифа в кассе.</div>';
+}
+function render(){
+  const done=placed();
+  const byAll=liveClasses(true);
+  $("t-cls").textContent=Object.keys(byAll).length-(byAll[NOCLASS]?1:0);
+  $("t-un").textContent=(byAll[NOCLASS]||[]).length;
+  $("t-done").textContent=Object.keys(done).length;
+  $("t-find").textContent=$("finds").querySelectorAll(".find").length;
+  const u=$("undo"), h=hist[hist.length-1];
+  u.disabled=!h;
+  $("undot").textContent=h?("Отменить: "+h.label):"Отменять нечего";
+  if(view==="audit")renderAudit();
+  else if(view==="list")renderList();
+  else if(view==="sim")renderSim();
+  else if(view==="pairs")renderPairs();
+  else if(seed)renderCandidates();
+  else renderCase();
+  renderFinds();renderMine();
+}
+/* one delegated listener each, attached once: re-adding them on every render
+   stacked duplicates and made a single click toggle a chip several times */
+const BANDW={0:3,3:3,6:4,10:4};
+$("stage").addEventListener("click",e=>{
+  if(view==="audit"){
+    const mo=e.target.closest("[data-more2]");
+    if(mo){const k=mo.dataset.more2;clexp.has(k)?clexp.delete(k):clexp.add(k);renderAudit();return;}
+    const dr=e.target.closest("[data-drop2]");
+    if(dr){
+      snapshot("убран "+dr.dataset.drop2+" из класса");
+      delete placed()[dr.dataset.drop2];
+      const done=placed();
+      done[dr.dataset.drop2]=undefined;delete done[dr.dataset.drop2];
+      save();render();return;}
+    const ok=e.target.closest("[data-audok]");
+    if(ok){fdis["au|"+side+"|"+ok.dataset.audok]=1;save();renderAudit();return;}
+    const c=e.target.closest(".chip");
+    if(c&&c.dataset.n){
+      csel.has(c.dataset.n)?csel.delete(c.dataset.n):csel.add(c.dataset.n);
+      document.body.classList.toggle("moving",csel.size>0);
+      $("mvn").textContent=csel.size;
+      renderAudit();}
+    return;
+  }
+  if(view==="list"){
+    const mo=e.target.closest("[data-more]");
+    if(mo){
+      const c=mo.dataset.more;
+      clexp.has(c)?clexp.delete(c):clexp.add(c);
+      renderList();return;}
+    const h=e.target.closest("[data-here]");
+    if(h){moveSel(h.dataset.here);return;}
+    const c=e.target.closest(".chip");
+    if(c&&c.dataset.n){
+      csel.has(c.dataset.n)?csel.delete(c.dataset.n):csel.add(c.dataset.n);
+      renderList();}
+    return;
+  }
+  if(view==="sim"){
+    const mo2=e.target.closest("[data-more2]");
+    if(mo2){
+      const k=mo2.dataset.more2;
+      clexp.has(k)?clexp.delete(k):clexp.add(k);
+      renderSim();return;}
+    const s=e.target.closest("[data-sim]"), n=e.target.closest("[data-simno]");
+    if(s){
+      const from=s.dataset.sim, to=s.dataset.to, by=liveClasses();
+      const mem=by[from]||[];
+      snapshot("свод @"+from+" → @"+to+" ("+mem.length+")");
+      const done=placed();
+      mem.forEach(g=>done[g]=to);
+      save();render();return;}
+    if(n){fdis["sim|"+side+"|"+n.dataset.simno]=1;save();render();}
+    return;
+  }
+  if(view==="pairs"){
+    const mo3=e.target.closest("[data-more2]");
+    if(mo3){
+      const k=mo3.dataset.more2;
+      clexp.has(k)?clexp.delete(k):clexp.add(k);
+      renderPairs();return;}
+    const f=e.target.closest("[data-fix]");
+    if(f){
+      const cls=f.dataset.fix, to=f.dataset.to;
+      const p=pairRows().find(x=>x.cls===cls&&x.target===to);
+      if(p){
+        const moving=p.rows.filter(r=>r.sc&&r.cls!==p.target).map(r=>r.sc);
+        snapshot("свод капители @"+cls+" → @"+to+" ("+moving.length+")");
+        const done=placed();
+        moving.forEach(n=>done[n]=to);
+        save();render();
+      }
+      return;}
+    const c=e.target.closest("[data-move]");
+    if(c&&c.dataset.n){
+      snapshot(c.dataset.n+" → @"+c.dataset.move);
+      placed()[c.dataset.n]=c.dataset.move;
+      save();render();
+    }
+    return;
+  }
+  if(!seed){
+    const c=e.target.closest(".chip");
+    if(c&&c.dataset.n)startFrom(c.dataset.n);
+    return;
+  }
+  const ab=e.target.closest("[data-ac]");
+  if(ab){acPick(ab.dataset.ac);return;}
+  if(e.target.closest("#ok")){commit();return;}
+  if(e.target.id==="nm")return;
+  if(e.target.closest("#back")){seed=null;cand=null;picked.clear();render();return;}
+  const tk=e.target.closest("[data-take]");
+  if(tk){
+    // straight into the class: the obvious band should not need a second click
+    const lo=+tk.dataset.take;
+    picked.clear();
+    cand.filter(r=>r[0]>=lo&&r[0]<lo+BANDW[lo]).forEach(r=>picked.add(r[1]));
+    commit();return;}
+  const b=e.target.closest(".ba");
+  if(b){
+    const lo=+b.dataset.band;
+    cand.filter(r=>r[0]>=lo&&r[0]<lo+BANDW[lo]).forEach(r=>picked.add(r[1]));
+    renderCandidates();return;}
+  const c=e.target.closest(".chip");
+  if(c&&c.dataset.n&&c.dataset.n!==seed){
+    const n=c.dataset.n;
+    picked.has(n)?picked.delete(n):picked.add(n);
+    renderCandidates();}
+});
+$("stage").addEventListener("input",e=>{
+  if(e.target.id!=="nm")return;
+  warnName(e.target.value.trim());
+  suggest(e.target.value);
+});
+$("stage").addEventListener("keydown",e=>{
+  if(e.target.id!=="nm")return;
+  if(e.key==="Escape"){$("ac").innerHTML="";acList=[];acIdx=-1;return;}
+  if(!acList.length){if(e.key==="Enter")commit();return;}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    e.preventDefault();
+    acIdx=(acIdx+(e.key==="ArrowDown"?1:-1)+acList.length+1)%(acList.length+1)-0;
+    if(acIdx>=acList.length)acIdx=-1;
+    [...$("ac").children].forEach((b,i)=>b.classList.toggle("sel",i===acIdx));
+    return;}
+  if(e.key==="Enter"){
+    e.preventDefault();
+    if(acIdx>=0)acPick(acList[acIdx]); else commit();
+  }
+});
+$("mvgo").addEventListener("click",()=>moveSel($("mvto").value.trim()));
+$("mvto").addEventListener("keydown",e=>{if(e.key==="Enter")moveSel(e.target.value.trim());});
+$("mvoff").addEventListener("click",()=>{csel.clear();render();});
+$("finds").addEventListener("click",e=>{
+  const mv=e.target.closest("[data-mv]"), fd=e.target.closest("[data-fd]");
+  if(mv){
+    snapshot(mv.dataset.mv+" → @"+mv.dataset.to);
+    placed()[mv.dataset.mv]=mv.dataset.to;
+    save();render();return;}
+  if(fd){fdis[fd.dataset.fd]=1;save();renderFinds();render();}
+});
+$("mine").addEventListener("click",e=>{
+  const b=e.target.closest("[data-drop]");if(!b)return;
+  const done=placed(), name=b.dataset.drop;
+  const n=Object.keys(done).filter(g=>done[g]===name).length;
+  snapshot("удаление @"+name+" ("+n+")");
+  for(const g of Object.keys(done)) if(done[g]===name) delete done[g];
+  save();render();
+});
+$("undo").addEventListener("click",()=>{nprops=[];renderNext();undo();});
+$("learn").addEventListener("change",e=>{
+  learn=e.target.checked;
+  try{localStorage.setItem("kernassist:learn",learn?"1":"0");}catch(err){}
+  if(!learn){nprops=[];renderNext();}
+});
+$("nextprops").addEventListener("click",e=>{
+  const y=e.target.closest("[data-np]"), n=e.target.closest("[data-npn]");
+  if(y){
+    const p=nprops[+y.dataset.np];if(!p)return;
+    snapshot((p.kind==="frag"?"продолжение «"+p.frag+"»":"свод капители")+
+             " → @"+p.target+" ("+p.hits.length+")");
+    const done=placed();
+    p.hits.forEach(g=>done[g]=p.target);
+    save();
+    nprops=nextProps(p.hits,p.target,p.hits[0],p.lim||6);
+    render();renderNext(true);return;}
+  if(n){
+    const p=nprops[+n.dataset.npn];if(!p)return;
+    npDismiss.add(p.kind==="frag"?"f|"+p.target+"|"+p.frag:"c|"+p.target);
+    nprops=nprops.filter((x,i)=>i!==+n.dataset.npn);
+    renderNext();}
+});
+document.addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="z"&&!e.shiftKey){
+    if(e.target.tagName==="INPUT")return;      /* leave text editing alone */
+    e.preventDefault();undo();
+  }
+});
+/* instant tooltip: name plus whatever class the glyph answers to today */
+const TIP=$("tip");
+function tipFor(n){
+  const done=placed(), g=done[n]||D.sides[side].group[n];
+  return esc(n)+(g?'<i>@'+esc(g)+'</i>':'<i>без класса</i>')+
+    (suspect[n]?'<i style="color:var(--warn);opacity:1">'+esc(suspect[n])+'</i>':'');
+}
+document.addEventListener("mouseover",e=>{
+  const c=e.target.closest&&e.target.closest(".chip");
+  if(!c||!c.dataset.n){TIP.style.display="none";return;}
+  TIP.innerHTML=tipFor(c.dataset.n);
+  TIP.style.display="block";
+  const r=c.getBoundingClientRect(), t=TIP.getBoundingClientRect();
+  let x=r.left+r.width/2-t.width/2, y=r.top-t.height-6;
+  if(y<4)y=r.bottom+6;
+  TIP.style.left=Math.max(4,Math.min(x,innerWidth-t.width-4))+"px";
+  TIP.style.top=y+"px";
+});
+document.addEventListener("mouseout",e=>{
+  if(e.target.closest&&e.target.closest(".chip"))TIP.style.display="none";
+});
+addEventListener("scroll",()=>{TIP.style.display="none"},true);
+const mapping=()=>JSON.stringify({R:made.R,L:made.L},null,1);
+window.currentMapping=()=>({R:made.R,L:made.L});
+$("dl").addEventListener("click",async()=>{
+  const M=$("msg");M.textContent="собираю…";
+  const dl=await (window.claude&&window.claude.use?window.claude.use("downloads"):null);
+  if(!dl){try{await navigator.clipboard.writeText(mapping());
+    M.textContent="скачивание недоступно — скопировано в буфер";}
+    catch(e){M.textContent="скачивание недоступно";}return;}
+  try{const r=await dl.save({filename:(D.family||"font").replace(/\W+/g,"_")+"_groups.json",
+    data:mapping()});
+    M.textContent=r.status==="saved"?"сохранено":"передано";}
+  catch(err){M.textContent=err&&err.code==="declined"?"отменено":"не сохранилось";}
+});
+$("cp").addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText(mapping());$("msg").textContent="в буфере";}
+  catch(e){$("msg").textContent="буфер недоступен";}
+});
+$("reset").addEventListener("click",()=>{
+  if(!confirm("Стереть все созданные классы?"))return;
+  snapshot("сброс всего");
+  made={R:{},L:{}};fdis={};seed=null;cand=null;picked.clear();
+  try{localStorage.removeItem(KEY);}catch(e){}
+  render();
+});
+$("viewseg").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  view=b.dataset.view;seed=null;cand=null;picked.clear();csel.clear();clqRaw="";
+  nprops=[];renderNext();
+  [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed",x===b));
+  render();});
+$("sideseg").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  side=b.dataset.side;seed=null;cand=null;picked.clear();qRaw="";clqRaw="";
+  nprops=[];renderNext();
+  [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed",x===b));
+  render();});
+render();
+};
+</script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+let TEXT=null, MASTERS=[], pick=0;
+
+function show(msg){ $("prog").textContent=msg||""; }
+function masters(text){
+  const f=window.GlyphsFile.readFont(text);
+  return f.masters.map(m=>m.name);
+}
+function offer(text,name){
+  TEXT=text;
+  try{ MASTERS=masters(text); }
+  catch(e){ show("Не удалось разобрать файл: "+e.message); return; }
+  if(!MASTERS.length){ show("В файле не нашлось мастеров."); return; }
+  pick=MASTERS.length>1?1:0;                 /* средний вес обычно второй */
+  $("mrow").innerHTML=MASTERS.map((m,i)=>
+    '<button data-m="'+i+'" aria-pressed="'+(i===pick)+'">'+m.replace(/</g,"&lt;")+'</button>').join("");
+  $("mpick").classList.add("on");
+  show(name+" · "+MASTERS.length+" "+(MASTERS.length===1?"мастер":"мастера"));
+}
+$("mrow").addEventListener("click",e=>{
+  const b=e.target.closest("[data-m]"); if(!b)return;
+  pick=+b.dataset.m;
+  [...e.currentTarget.children].forEach((x,i)=>x.setAttribute("aria-pressed",i===pick));
+});
+function read(file){
+  const r=new FileReader();
+  r.onload=()=>offer(r.result,file.name);
+  r.onerror=()=>show("Файл не прочитался.");
+  r.readAsText(file);
+}
+const drop=$("drop");
+drop.addEventListener("click",()=>$("file").click());
+$("file").addEventListener("change",e=>{ if(e.target.files[0])read(e.target.files[0]); });
+["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{
+  e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{
+  e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{
+  const f=e.dataTransfer.files[0];
+  if(f)read(f);
+});
+window.addEventListener("dragover",e=>e.preventDefault());
+window.addEventListener("drop",e=>e.preventDefault());
+
+$("go").addEventListener("click",()=>{
+  if(!TEXT)return;
+  show("разбираю…");
+  setTimeout(()=>{
+    let D;
+    try{ D=window.GlyphsLoader.build(TEXT,pick,(what,a,b)=>show(what+" "+a+"/"+b)); }
+    catch(e){ show("Ошибка разбора: "+e.message); return; }
+    window.ASSIST=D;
+    $("gate").style.display="none";
+    $("app").classList.add("on");
+    window.startAssistant();
+    wireDownload(D);
+  },30);
+});
+
+/* ---- put the classes back and hand over the file ---- */
+function wireDownload(D){
+  const btn=document.getElementById("dlfont");
+  if(!btn)return;
+  btn.addEventListener("click",async()=>{
+    const M=document.getElementById("msg");
+    const map=window.currentMapping?window.currentMapping():null;
+    if(!map||(!Object.keys(map.R||{}).length&&!Object.keys(map.L||{}).length)){
+      M.textContent="Пока нечего применять — вы не меняли классы.";return;}
+    M.textContent="записываю…";
+    let res;
+    try{ res=window.GlyphsWrite.apply(D._text,map); }
+    catch(e){ M.textContent="не записалось: "+e.message; return; }
+    const fname=(D.family||"font").replace(/\W+/g,"_")+"_grouped.glyphs";
+    const dl=await (window.claude&&window.claude.use?window.claude.use("downloads"):null);
+    if(dl){
+      try{
+        const r=await dl.save({filename:fname,data:res.text});
+        M.textContent=(r.status==="saved"?"сохранено":"передано")+" · "+res.written+" свойств";
+      }catch(err){
+        M.textContent=err&&err.code==="declined"?"отменено":"не сохранилось";
+      }
+      return;
+    }
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([res.text],{type:"text/plain"}));
+    a.download=fname;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    M.textContent="скачано · "+res.written+" свойств"+
+      (res.missing.length?" · "+res.missing.length+" глифов не найдено":"");
+  });
+}
+})();
+</script>
