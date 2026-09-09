@@ -1,4 +1,4 @@
-<title>Kerning class assistant</title>
+<title>KernClass Assistant</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap">
 <style>
@@ -51,9 +51,11 @@ header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-t
 .q b{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent)}
 .why{font-size:12.5px;color:var(--muted);margin-bottom:13px}
 .chips{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:14px}
-.chip{width:38px;height:40px;border:1px solid var(--line);border-radius:4px;background:var(--surface-2);
-  display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
-.chip svg{width:100%;height:100%}
+.chip{width:38px;height:48px;flex:none;border:1px solid var(--line);border-radius:4px;
+  background:var(--surface-2);display:flex;align-items:center;justify-content:center;
+  overflow:visible;position:relative}
+.chips{align-items:flex-start}
+.chip svg{width:100%;height:100%;overflow:visible}
 .chip path{fill:var(--ink-2)}
 .chip.off{opacity:.28}
 .chip.off path{fill:var(--faint)}
@@ -136,7 +138,8 @@ header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-t
   cursor:pointer;margin-bottom:9px}
 .togs{display:flex;gap:16px;flex-wrap:wrap}
 /* names under the chips, on demand */
-.cap .chip{height:56px;padding-bottom:13px}
+.cap .chip{height:64px;padding-bottom:13px}
+.cap .chip{overflow:hidden}
 .cap .chip::after{content:attr(data-n);position:absolute;left:1px;right:1px;bottom:1px;
   font-family:var(--mono);font-size:8.5px;line-height:1.2;color:var(--faint);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;direction:rtl}
@@ -168,7 +171,7 @@ header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-t
 .undo .k{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
 .pairs{display:flex;flex-wrap:wrap;gap:5px}
 .pr{display:flex;flex-direction:column;gap:2px;align-items:center}
-.pr .slot{width:38px;height:40px;border:1px dashed var(--line-2);border-radius:4px;
+.pr .slot{width:38px;height:48px;border:1px dashed var(--line-2);border-radius:4px;
   background:repeating-linear-gradient(45deg,transparent,transparent 4px,var(--sunken) 4px,var(--sunken) 5px)}
 .pr .lab{font-family:var(--mono);font-size:8px;color:var(--warn);max-width:40px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -197,7 +200,7 @@ body.moving .cl .ch .here{display:inline-block}
 .chip.pick{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent);background:var(--accent-soft)}
 .chip.pick path{fill:var(--accent)}
 .chip.more{cursor:pointer;border-style:dashed;color:var(--accent);font-weight:600;
-  align-self:center;height:40px;display:flex;align-items:center}
+  align-self:center;height:48px;display:flex;align-items:center}
 .chip.more:hover{border-color:var(--accent);background:var(--accent-soft)}
 .chip.sus{border-color:var(--warn);border-width:2px}
 .chip.sus path{fill:var(--warn)}
@@ -268,7 +271,7 @@ body.moving .movebar{display:flex}
 </style>
 
 <div class="gate" id="gate">
-  <h1>Class assistant</h1>
+  <h1>KernClass Assistant</h1>
   <p>Drop a <b>.glyphs</b> file here — the app reads it right in the browser, shows
      its classes, finds what looks wrong and hands back a finished file. Nothing to
      install, and the font never leaves your machine.</p>
@@ -287,7 +290,7 @@ body.moving .movebar{display:flex}
 <div id="app">
 <div class="wrap">
 <header>
-  <div><h1>Class assistant</h1><div class="sub" id="sub">—</div></div>
+  <div><h1>KernClass Assistant</h1><div class="sub" id="sub">—</div></div>
   <div class="tally">
     <div><div class="v" id="t-cls">—</div><div class="k">classes in font</div></div>
     <div><div class="v" id="t-un">—</div><div class="k">unassigned</div></div>
@@ -629,7 +632,14 @@ function svgPath(font, index, name, layerId, scale) {
   const polys = [];
   polygons(font, index, name, layerId, IDENT, 0, false, polys);
   const f = v => Math.round(v * 10) / 10;
-  return polys.map(p => "M" + p.map(q => f(q[0]*scale) + " " + f(-q[1]*scale)).join("L") + "Z").join("");
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const d = polys.map(p => "M" + p.map(q => {
+    const x = q[0] * scale, y = -q[1] * scale;
+    if (x < x0) x0 = x; if (x > x1) x1 = x;
+    if (y < y0) y0 = y; if (y > y1) y1 = y;
+    return f(x) + " " + f(y);
+  }).join("L") + "Z").join("");
+  return d ? { d: d, box: [f(x0), f(y0), f(x1), f(y1)] } : null;
 }
 
 root.GlyphProfiles = { YS: YS, NY: NY, FAR: FAR, profile: profile,
@@ -856,10 +866,10 @@ function build(text, masterIndex, onProgress) {
   const scale = 0.09 * (1000 / (mm.capHeight || 700));
   let done = 0;
   for (const g of live) {
-    const d = P.svgPath(F, index, g.name, master.id, scale);
+    const r = P.svgPath(F, index, g.name, master.id, scale);
     const L = g.layers.find(l => l.layerId === master.id) ||
               g.layers.find(l => l.associated === master.id);
-    if (d) data.paths[g.name] = [d, Math.round(L.width * scale * 10) / 10];
+    if (r) data.paths[g.name] = [r.d, Math.round(L.width * scale * 10) / 10].concat(r.box);
     if (onProgress && ++done % 300 === 0) onProgress("outlines", done, live.length);
   }
 
@@ -889,6 +899,20 @@ function build(text, masterIndex, onProgress) {
     };
     if (onProgress) onProgress("profiles " + side, 1, 1);
   }
+  /* One vertical window for every chip: a per-glyph viewBox made wide letters
+     render smaller and floated the baseline about. Robust bounds, so a single
+     towering swash cannot shrink the whole alphabet. */
+  /* One frame for the whole font: same scale, same baseline everywhere.  Sized
+     to hold 98% of the glyphs - past that the curve turns cruel, and buying room
+     for four swashes would cost every letter a quarter of its size.  The handful
+     that reach further are drawn outside their chip rather than cut off. */
+  const tops = [], bots = [];
+  for (const k in data.paths) { tops.push(data.paths[k][3]); bots.push(data.paths[k][5]); }
+  tops.sort((a, b) => a - b); bots.sort((a, b) => a - b);
+  const q = (arr, p) => arr.length
+    ? arr[Math.min(arr.length - 1, Math.max(0, Math.round((arr.length - 1) * p)))] : 0;
+  data.ybox = [Math.min(q(tops, 0.02), -(mm.capHeight * scale)) - 8,
+               Math.max(q(bots, 0.98), 0) + 8];
   data._text = text;
   data._masters = F.masters.map(m => m.name);
   return data;
@@ -940,7 +964,7 @@ function undo(){
   nprops=nextProps(took,nm,anchor,maxd);
   render();renderNext(true);
 }
-document.title="Assistant — "+(D.family||"");
+document.title="KernClass — "+(D.family||"");
 $("sub").textContent=(D.family||"")+" · master "+(D.master||"")+" · "+D.glyphs+" glyphs";
 
 /* ---------- one row of the matrix per pick, never the whole thing ---------- */
@@ -995,15 +1019,25 @@ function collision(name){
   return {font:Object.keys(S.group).filter(g=>S.group[g]===name&&!(g in done)),
           mine:Object.keys(done).filter(g=>done[g]===name)};
 }
+const CH=48;                               /* chip height in px, the scale anchor */
+const YB=()=>D.ybox||[-110,40];
 function chip(n,cls,moveTo){
   const p=D.paths[n];
   const extra=moveTo?' data-move="'+esc(moveTo)+'"':'';
   if(!p)return '<span class="chip txt '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+
     ' title="'+esc(n)+'">'+esc(n).slice(0,12)+'</span>';
-  const w=Math.max(p[1]||60,18);
-  return '<span class="chip '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+' title="'+esc(n)+'">'+
-    '<svg viewBox="-9 -104 '+(w+18).toFixed(0)+' 140" preserveAspectRatio="xMidYMid meet">'+
-    '<path d="'+p[0]+'"/></svg></span>';
+  const yb=YB(), H=yb[1]-yb[0], pad=7;
+  /* ink can reach past the advance on either side, so the window holds whichever
+     is wider - otherwise swash tails get cut off */
+  const adv=Math.max(p[1]||60,18);
+  const left=Math.min(0,p[2]!==undefined?p[2]:0)-pad;
+  const right=Math.max(adv,p[4]!==undefined?p[4]:adv)+pad;
+  const W=right-left;
+  const px=(W/H)*CH;                       /* one scale for every glyph */
+  return '<span class="chip '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+' title="'+esc(n)+'"'+
+    ' style="width:'+Math.max(20,Math.min(px,150)).toFixed(0)+'px">'+
+    '<svg viewBox="'+left+' '+yb[0]+' '+W.toFixed(0)+' '+H.toFixed(0)+
+    '" preserveAspectRatio="xMidYMid meet"><path d="'+p[0]+'"/></svg></span>';
 }
 /* the search box lives inside the block it filters, so redrawing the list tears
    out the very input being typed into.  Put the caret back where it was. */
@@ -1615,9 +1649,13 @@ function computeFindings(s){
       const d=dist(A,i,j);
       if(d<=3){split.push({i:i,j:j,d:d});continue;}
       if((ci==="letter"||ci==="number")&&d>=18){
+        const same=(ki||null)===(cse[rep[j]]||null);
         const sh=dist(N,i,j);
-        if(sh<=3)spacing.push({i:i,j:j,shape:sh,actual:d,
-                               same_case:(ki||null)===(cse[rep[j]]||null)});
+        /* Capitals and lowercase are *meant* to be spaced differently, so a
+           merely similar shape across cases says nothing.  Only an identical
+           drawing does - and then the suspect part is the case itself. */
+        if(sh<=(same?3:1))
+          spacing.push({i:i,j:j,shape:sh,actual:d,same_case:same});
       }
     }
   }
@@ -1666,10 +1704,15 @@ function renderFinds(){
         (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">'+esc(x.b)+' → @'+esc(ca)+'</button>':'')+
         (cb?'<button data-mv="'+esc(x.a)+'" data-to="'+esc(cb)+'">'+esc(x.a)+' → @'+esc(cb)+'</button>':'')+
         '<button class="no" data-fd="'+k+'" data-tip="Keep them apart on purpose; this finding will not come back.">That is intended</button></div></div>';
-    return '<div class="find"><div class="t"><b>'+esc(x.a)+'</b> and <b>'+esc(x.b)+
-      '</b> share a shape ('+x.shape+'%) but their sidebearings differ by <b>'+x.actual+'%</b>'+
-      (x.same_case?'':' (different case — this may well be deliberate)')+
-      '. That is a spacing bug rather than a grouping one: fix it in the font, not here</div>'+
+    return '<div class="find"><div class="t">'+
+      (x.same_case
+        ? '<b>'+esc(x.a)+'</b> and <b>'+esc(x.b)+'</b> share a shape ('+x.shape+
+          '%) but their sidebearings differ by <b>'+x.actual+
+          '%</b>. That is a spacing bug rather than a grouping one: fix it in the font, not here'
+        : '<b>'+esc(x.a)+'</b> and <b>'+esc(x.b)+'</b> are drawn identically ('+x.shape+
+          '%) yet are filed under different cases, and their sidebearings differ by <b>'+
+          x.actual+'%</b>. Either the spacing or the case of one of them is wrong')+
+      '</div>'+
       '<div class="chips">'+chip(x.a,"hot")+chip(x.b,"hot")+'</div><div class="act">'+
       (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">put in @ anyway'+esc(ca)+'</button>':'')+
       '<button class="no" data-fd="'+k+'" data-tip="Set aside — you will fix the spacing in the font itself.">Mark as handled</button></div></div>';
