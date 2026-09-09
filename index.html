@@ -90,13 +90,12 @@ header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-t
 .seg button{flex:1;border:0;background:transparent;padding:7px;border-radius:4px;font-size:12.5px;
   color:var(--muted)}
 .seg button{display:flex;align-items:center;justify-content:center;gap:9px}
-.sd{width:46px;height:24px;flex:none}
-.sdg{font-family:var(--serif);font-size:19px;fill:currentColor}
-.sdb{fill:var(--muted);opacity:.16;stroke:var(--muted);stroke-width:1;
-  stroke-dasharray:2.5 2.5;stroke-opacity:.5}
+.sd{width:34px;height:24px;flex:none}
+.sdg{font-family:var(--serif);font-size:21px;fill:currentColor}
+/* the band lies over half the letter, so it reads as that side of the glyph */
+.sdb{fill:var(--muted);opacity:.2}
 .sdn{font-family:var(--mono);font-size:11.5px;letter-spacing:.02em}
-.seg button[aria-pressed="true"] .sdb{fill:var(--accent);opacity:.3;stroke:var(--accent);
-  stroke-opacity:.9;stroke-dasharray:none}
+.seg button[aria-pressed="true"] .sdb{fill:var(--accent);opacity:.34}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);
   box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--line)}
 .msg{font-size:12px;color:var(--muted);min-height:16px;margin-top:8px}
@@ -291,7 +290,7 @@ body.moving .movebar{display:flex}
 </header>
 
 <div class="seg" id="viewseg">
-  <button data-view="work" aria-pressed="true">Case &amp; classes</button>
+  <button data-view="work" aria-pressed="true">Characters</button>
   <button data-view="pairs" aria-pressed="false">Twin classes</button>
   <button data-view="sim" aria-pressed="false">Similar classes</button>
   <button data-view="audit" aria-pressed="false">Review</button>
@@ -301,16 +300,16 @@ body.moving .movebar{display:flex}
 <div class="seg" id="sideseg">
   <button data-side="R" aria-pressed="true"
     title="The right flank of the glyph — the side that meets whatever comes next. This is the class a glyph uses when it stands on the left of a pair.">
-    <svg class="sd" viewBox="0 0 46 24" aria-hidden="true">
-      <text class="sdg" x="15" y="18">n</text>
-      <rect class="sdb" x="30" y="2" width="13" height="20" rx="2"/>
+    <svg class="sd" viewBox="0 0 34 24" aria-hidden="true">
+      <text class="sdg" x="17" y="19" text-anchor="middle">n</text>
+      <rect class="sdb" x="17" y="1" width="16" height="22" rx="2"/>
     </svg><span class="sdn">@MMK_L_</span>
   </button>
   <button data-side="L" aria-pressed="false"
     title="The left flank of the glyph — the side that meets whatever came before. This is the class a glyph uses when it stands on the right of a pair.">
-    <svg class="sd" viewBox="0 0 46 24" aria-hidden="true">
-      <rect class="sdb" x="3" y="2" width="13" height="20" rx="2"/>
-      <text class="sdg" x="31" y="18">n</text>
+    <svg class="sd" viewBox="0 0 34 24" aria-hidden="true">
+      <text class="sdg" x="17" y="19" text-anchor="middle">n</text>
+      <rect class="sdb" x="1" y="1" width="16" height="22" rx="2"/>
     </svg><span class="sdn">@MMK_R_</span>
   </button>
 </div>
@@ -320,7 +319,7 @@ body.moving .movebar{display:flex}
     <div class="lbl" id="stagelbl">Case — pick the glyph to start a class from</div>
     <div id="nextprops"></div>
     <div id="stage"></div>
-    <div class="lbl" style="margin-top:24px">What looks wrong in the font</div>
+    <div class="lbl" style="margin-top:24px">What looks strange in the font</div>
     <div id="finds"></div>
   </div>
   <div>
@@ -1017,17 +1016,17 @@ const plural=(n,a,b,c)=>{const m=n%100,k=n%10;return m>=11&&m<=14?c:k===1?a:k>=2
 /* ---------- the case: pick a glyph to start a class from ---------- */
 function renderCase(){
   const all=inCase();
-  $("stagelbl").textContent="Case — pick the glyph to start a class from";
+  $("stagelbl").textContent="Pick a character to start a class from";
   $("stage").innerHTML='<div class="pane">'+
     '<input class="srch" id="q" placeholder="Find a glyph…" value="'+esc(qRaw)+
     '" spellcheck="false" autocomplete="off">'+
     '<div class="togs">'+
     '<label class="tog"><input type="checkbox" id="showall"'+(showAll?" checked":"")+
-    '> show glyphs that already have a class</label>'+
+    '> show characters that already have a class (group)</label>'+
     '<label class="tog"><input type="checkbox" id="capson"'+(caps?" checked":"")+
     '> names under glyphs</label></div>'+
     '<div class="hint" style="margin-bottom:9px">'+(showAll?"Glyphs":"Unassigned")+
-    ': <b>'+all.length+'</b>. Click a glyph and the assistant gathers the rest around it.</div>'+
+    ': <b>'+all.length+'</b>. Click a character and the assistant gathers the rest around it.</div>'+
     '<div class="case'+(caps?" cap":"")+'" id="case">'+all.slice(0,700).map(n=>chip(n)).join("")+
     (all.length>700?'<span class="chip txt">+'+(all.length-700)+'</span>':"")+'</div></div>';
   $("q").addEventListener("input",e=>{qRaw=e.target.value;keepFocus(renderCase);});
@@ -1129,6 +1128,9 @@ function acPick(n){
 function warnName(name){
   const w=$("namewarn"); if(!w)return;
   const c=collision(name);
+  const btn=$("ok");
+  if(btn) btn.textContent=(c.font.length||c.mine.length)
+    ? "Into @"+name : "Create class";
   if(!c.font.length&&!c.mine.length){w.innerHTML="";return;}
   let html='<div class="warn">';
   if(c.font.length)
