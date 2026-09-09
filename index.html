@@ -143,6 +143,10 @@ header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-t
   background:var(--ink);color:var(--bg);font-family:var(--mono);font-size:11.5px;
   padding:4px 8px;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,.3);white-space:nowrap}
 #tip i{font-style:normal;opacity:.62;margin-left:7px}
+/* the same bubble carries longer explanations, and those wait a moment so they
+   do not flash past while the pointer is only crossing the bar */
+#tip.wide{white-space:normal;max-width:290px;line-height:1.45;padding:8px 11px;
+  font-family:var(--sans);font-size:12.5px}
 .ac{margin-top:7px;border:1px solid var(--line);border-radius:5px;overflow:hidden;
   background:var(--surface);max-height:210px;overflow-y:auto}
 .ac:empty{display:none}
@@ -290,23 +294,23 @@ body.moving .movebar{display:flex}
 </header>
 
 <div class="seg" id="viewseg">
-  <button data-view="work" aria-pressed="true">Characters</button>
-  <button data-view="pairs" aria-pressed="false">Twin classes</button>
-  <button data-view="sim" aria-pressed="false">Similar classes</button>
-  <button data-view="audit" aria-pressed="false">Review</button>
-  <button data-view="list" aria-pressed="false">All classes</button>
+  <button data-view="work" aria-pressed="true" data-tip="Pick a character and the app gathers everything that could share its class, sorted by how close it sits.">Characters</button>
+  <button data-view="pairs" aria-pressed="false" data-tip="Classes that ought to mirror each other — capitals against small caps, @Y against @Y.alt01. A gap in the mirror is usually an oversight.">Twin classes</button>
+  <button data-view="sim" aria-pressed="false" data-tip="Pairs of classes close enough to be one. Merge them, or mark them as deliberately apart.">Similar classes</button>
+  <button data-view="audit" aria-pressed="false" data-tip="The classes already in the font, ranked by spread: how far the odd one out sits from the class core.">Review</button>
+  <button data-view="list" aria-pressed="false" data-tip="The whole font, unassigned characters included. Click any character to move it somewhere else.">All classes</button>
 </div>
 
 <div class="seg" id="sideseg">
   <button data-side="R" aria-pressed="true"
-    title="The right flank of the glyph — the side that meets whatever comes next. This is the class a glyph uses when it stands on the left of a pair.">
+    data-tip="The right flank of the character — the side that meets whatever comes next. This is the class it uses when standing on the left of a pair.">
     <svg class="sd" viewBox="0 0 34 24" aria-hidden="true">
       <text class="sdg" x="17" y="19" text-anchor="middle">n</text>
       <rect class="sdb" x="17" y="1" width="16" height="22" rx="2"/>
     </svg><span class="sdn">@MMK_L_</span>
   </button>
   <button data-side="L" aria-pressed="false"
-    title="The left flank of the glyph — the side that meets whatever came before. This is the class a glyph uses when it stands on the right of a pair.">
+    data-tip="The left flank of the character — the side that meets whatever came before. This is the class it uses when standing on the right of a pair.">
     <svg class="sd" viewBox="0 0 34 24" aria-hidden="true">
       <text class="sdg" x="17" y="19" text-anchor="middle">n</text>
       <rect class="sdb" x="1" y="1" width="16" height="22" rx="2"/>
@@ -325,22 +329,22 @@ body.moving .movebar{display:flex}
   <div>
     <div class="lbl">Your classes</div>
     <div class="pane">
-      <button class="undo" id="undo" disabled><span id="undot">Nothing to undo</span>
+      <button class="undo" id="undo" disabled data-tip="Step back one decision. ⌘Z does the same."><span id="undot">Nothing to undo</span>
         <span class="k">⌘Z</span></button>
-      <label class="tog" style="margin-bottom:11px"><input type="checkbox" id="learn" checked>
+      <label class="tog" style="margin-bottom:11px" data-tip="After each class you make, the app looks for what logically follows — a shared fragment in the names, or small-cap twins — and offers it."><input type="checkbox" id="learn" checked>
         suggest what follows after each decision</label>
       <div class="mine" id="mine"></div>
     </div>
     <div class="lbl" style="margin-top:22px">Finish</div>
     <div class="pane">
-      <button class="b main" id="dlfont" style="width:100%">Apply and download font</button>
-      <button class="b" id="dl" style="width:100%;margin-top:7px">groups.json only</button>
-      <button class="b" id="cp" style="width:100%;margin-top:7px">Copy JSON</button>
+      <button class="b main" id="dlfont" style="width:100%" data-tip="Writes your classes into a copy of the file and hands it back. Only the kernLeft and kernRight lines of characters you changed are touched.">Apply and download font</button>
+      <button class="b" id="dl" style="width:100%;margin-top:7px" data-tip="Just the mapping, as JSON — for applying somewhere else or keeping alongside the font.">groups.json only</button>
+      <button class="b" id="cp" style="width:100%;margin-top:7px" data-tip="Puts the mapping on the clipboard.">Copy JSON</button>
       <div class="msg" id="msg"></div>
       <div class="hint" style="margin-top:10px">You get a copy of your file with the classes written in. Anything you did not touch stays exactly as it was — only the lines you changed are rewritten.</div>
     </div>
     <div class="pane" style="margin-top:14px">
-      <button class="b" id="reset" style="width:100%">Start over</button>
+      <button class="b" id="reset" style="width:100%" data-tip="Erases every class you made in this session. The font itself is untouched.">Start over</button>
     </div>
   </div>
 </div>
@@ -351,8 +355,8 @@ body.moving .movebar{display:flex}
   <span style="font-size:12.5px;color:var(--muted)">selected — hit “here” on a class, or type a name</span>
   <input id="mvto" list="clslist" placeholder="target class" spellcheck="false">
   <datalist id="clslist"></datalist>
-  <button class="go" id="mvgo">Move</button>
-  <button id="mvoff">Clear</button>
+  <button class="go" id="mvgo" data-tip="Move the selected characters into the class named in the field.">Move</button>
+  <button id="mvoff" data-tip="Drop the selection without moving anything.">Clear</button>
 </div>
 <div id="tip"></div>
 
@@ -1076,8 +1080,8 @@ function renderCandidates(){
     any=true;
     html+='<div class="band"><div class="bh"><span class="bt">'+title+'</span>'+
       '<span class="bd">'+lo+'–'+hi+'% · '+rows.length+'</span>'+
-      '<button class="ba" data-band="'+lo+'">select all</button>'+
-      '<button class="bg" data-take="'+lo+'">into this class</button></div>'+
+      '<button class="ba" data-band="'+lo+'" data-tip="Tick every character in this band; you can still add or remove before creating the class.">select all</button>'+
+      '<button class="bg" data-take="'+lo+'" data-tip="Create the class straight from this band, ignoring anything ticked elsewhere.">into this class</button></div>'+
       '<div class="chips'+(caps?" cap":"")+' band-'+lo+'">'+rows.map(r=>
         chip(r[1],(picked.has(r[1])?"on":"")+(r[2]?" off":""))).join("")+'</div></div>';
   }
@@ -1329,7 +1333,7 @@ function renderPairs(){
           (p.off?p.off+' in another class':'')+(p.off&&p.gone?' · ':'')+
           (p.gone?p.gone+' with no small-cap twin':'')+'</span>')+
       (p.off?'<button class="fix" data-fix="'+esc(p.cls)+'" data-to="'+esc(p.target)+
-        '">Gather '+p.off+' into @'+esc(p.target)+'</button>':'')+
+        ' data-tip="Move every small-cap twin that drifted elsewhere into this class.">Gather '+p.off+' into @'+esc(p.target)+'</button>':'')+
       '</div><div class="pairs">'+
       (clexp.has("pr:"+p.cls)?p.rows:p.rows.slice(0,80)).map(r=>
         '<div class="pr">'+chip(r.up)+
@@ -1392,11 +1396,11 @@ function renderSim(){
     '<span class="nm2">@'+esc(r.b)+'</span>'+
     '<span class="simd">'+r.d.toFixed(1)+'%</span>'+
     '<span class="a" style="margin-left:auto;display:flex;gap:6px">'+
-    '<button class="fix" data-sim="'+esc(r.b)+'" data-to="'+esc(r.a)+'">Merge into @'+esc(r.a)+'</button>'+
+    '<button class="fix" data-sim="'+esc(r.b)+'" data-to="'+esc(r.a)+'" data-tip="Move everything from the second class into the first; the first name survives.">Merge into @'+esc(r.a)+'</button>'+
     '<button class="fix" style="background:var(--surface-2);color:var(--ink);border-color:var(--line-2)" '+
     'data-sim="'+esc(r.a)+'" data-to="'+esc(r.b)+'">into @'+esc(r.b)+'</button>'+
     '<button class="fix" style="background:transparent;color:var(--muted);border-color:var(--line-2)" '+
-    'data-simno="'+esc(r.a)+"|"+esc(r.b)+'">Different</button>'+
+    'data-simno="'+esc(r.a)+"|"+esc(r.b)+'" data-tip="Mark this pair as deliberately separate so it stops coming up.">Different</button>'+
     '</span></div><div class="simrow">'+
     ['a','b'].map(k=>{
       const nm=r[k], mem=r["m"+k];
@@ -1492,8 +1496,8 @@ function renderAudit(){
         '<span class="m">'+r.n+' glyphs · core '+esc(r.rep)+'</span>'+
         '<span class="sp" style="color:'+col+'">spread '+r.spread.toFixed(0)+'%</span>'+
         '<span class="acts">'+
-        (r.spread>20?'<button data-drop2="'+esc(r.worst)+'">drop '+esc(r.worst)+'</button>':'')+
-        '<button data-audok="'+esc(r.cls)+'">looks right</button></span></div>'+
+        (r.spread>20?'<button data-drop2="'+esc(r.worst)+'" data-tip="Take the furthest member out of the class, leaving it unassigned.">drop '+esc(r.worst)+'</button>':'')+
+        '<button data-audok="'+esc(r.cls)+'" data-tip="Stop flagging this class. The mark is kept between sessions.">looks right</button></span></div>'+
         '<div class="bar2"><i style="width:'+w+'%;background:'+col+'"></i></div>'+
         '<div class="chips'+(caps?" cap":"")+'">'+
         vis.map(([d,g])=>chip(g,d>Math.max(10,r.spread*0.6)?"hot":"")).join("")+
@@ -1542,7 +1546,7 @@ function renderList(){
         '<span class="c">'+mem.length+'</span>'+
         (mem.filter(g=>sus[g]).length
           ? '<span class="sus">'+mem.filter(g=>sus[g]).length+' suspect</span>':"")+
-        '<button class="here" data-here="'+esc(c)+'">here</button></div>'+
+        '<button class="here" data-here="'+esc(c)+'" data-tip="Move the selected characters into this class.">here</button></div>'+
         '<div class="chips'+(caps?" cap":"")+'">'+
         (clexp.has(c)?mem:mem.slice(0,60))
           .map(n=>chip(n,(csel.has(n)?"pick":"")+(sus[n]?" sus":"")+
@@ -1658,14 +1662,14 @@ function renderFinds(){
         '<div class="chips">'+chip(x.a,"hot")+chip(x.b,"hot")+'</div><div class="act">'+
         (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">'+esc(x.b)+' → @'+esc(ca)+'</button>':'')+
         (cb?'<button data-mv="'+esc(x.a)+'" data-to="'+esc(cb)+'">'+esc(x.a)+' → @'+esc(cb)+'</button>':'')+
-        '<button class="no" data-fd="'+k+'">That is intended</button></div></div>';
+        '<button class="no" data-fd="'+k+'" data-tip="Keep them apart on purpose; this finding will not come back.">That is intended</button></div></div>';
     return '<div class="find"><div class="t"><b>'+esc(x.a)+'</b> and <b>'+esc(x.b)+
       '</b> share a shape ('+x.shape+'%) but their sidebearings differ by <b>'+x.actual+'%</b>'+
       (x.same_case?'':' (different case — this may well be deliberate)')+
       '. That is a spacing bug rather than a grouping one: fix it in the font, not here</div>'+
       '<div class="chips">'+chip(x.a,"hot")+chip(x.b,"hot")+'</div><div class="act">'+
       (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">put in @ anyway'+esc(ca)+'</button>':'')+
-      '<button class="no" data-fd="'+k+'">Mark as handled</button></div></div>';
+      '<button class="no" data-fd="'+k+'" data-tip="Set aside — you will fix the spacing in the font itself.">Mark as handled</button></div></div>';
   }).join("");
 }
 function renderMine(){
@@ -1879,9 +1883,30 @@ function tipFor(n){
   return esc(n)+(g?'<i>@'+esc(g)+'</i>':'<i>unassigned</i>')+
     (suspect[n]?'<i style="color:var(--warn);opacity:1">'+esc(suspect[n])+'</i>':'');
 }
+let tipTimer=null;
+function hideTip(){clearTimeout(tipTimer);TIP.style.display="none";TIP.classList.remove("wide");}
+function placeTip(el){
+  const r=el.getBoundingClientRect(), t=TIP.getBoundingClientRect();
+  let x=r.left+r.width/2-t.width/2, y=r.top-t.height-8;
+  if(y<4)y=r.bottom+8;
+  TIP.style.left=Math.max(6,Math.min(x,innerWidth-t.width-6))+"px";
+  TIP.style.top=y+"px";
+}
 document.addEventListener("mouseover",e=>{
+  const h=e.target.closest&&e.target.closest("[data-tip]");
+  if(h){
+    clearTimeout(tipTimer);
+    tipTimer=setTimeout(()=>{
+      TIP.textContent=h.dataset.tip;
+      TIP.classList.add("wide");
+      TIP.style.display="block";
+      placeTip(h);
+    },420);
+    return;
+  }
   const c=e.target.closest&&e.target.closest(".chip");
-  if(!c||!c.dataset.n){TIP.style.display="none";return;}
+  if(!c||!c.dataset.n){hideTip();return;}
+  clearTimeout(tipTimer);TIP.classList.remove("wide");
   TIP.innerHTML=tipFor(c.dataset.n);
   TIP.style.display="block";
   const r=c.getBoundingClientRect(), t=TIP.getBoundingClientRect();
@@ -1891,9 +1916,10 @@ document.addEventListener("mouseover",e=>{
   TIP.style.top=y+"px";
 });
 document.addEventListener("mouseout",e=>{
-  if(e.target.closest&&e.target.closest(".chip"))TIP.style.display="none";
+  if(e.target.closest&&(e.target.closest(".chip")||e.target.closest("[data-tip]")))hideTip();
 });
-addEventListener("scroll",()=>{TIP.style.display="none"},true);
+addEventListener("scroll",hideTip,true);
+document.addEventListener("click",hideTip,true);
 const mapping=()=>JSON.stringify({R:made.R,L:made.L},null,1);
 window.currentMapping=()=>({R:made.R,L:made.L});
 $("dl").addEventListener("click",async()=>{
