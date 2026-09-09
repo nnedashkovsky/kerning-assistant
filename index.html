@@ -90,6 +90,9 @@ header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-t
 .seg button{flex:1;border:0;background:transparent;padding:7px;border-radius:4px;font-size:12.5px;
   color:var(--muted)}
 .seg button{display:flex;align-items:center;justify-content:center;gap:9px}
+/* our own display rule would otherwise beat the hidden attribute outside the
+   artifact host, where no reset stylesheet is in play */
+.seg button[hidden]{display:none}
 .sd{width:34px;height:24px;flex:none}
 .sdg{font-family:var(--serif);font-size:21px;fill:currentColor}
 /* the band lies over half the letter, so it reads as that side of the glyph */
@@ -1349,7 +1352,7 @@ function renderPairs(){
   }).join("");
 }
 /* class-to-class closeness: one matrix row per class, not the whole matrix */
-const NOCLASS="\u0431\u0435\u0437 \u043a\u043b\u0430\u0441\u0441\u0430";
+const NOCLASS="without kern class";
 /* every class, including NOKERN and the ones nobody has touched.  `all` also
    buckets the unassigned, so the view accounts for every glyph in the font. */
 function liveClasses(all){
@@ -1681,9 +1684,43 @@ function renderMine(){
     '<button class="x" data-drop="'+esc(c)+'" title="remove class">✕</button></div>').join("")
     :'<div class="empty">None yet. Start from any glyph in the case.</div>';
 }
+/* Twin classes only mean something where the font actually has small caps or
+   suffixed alternates.  Elsewhere the tab is not merely empty, it misleads — so
+   look at what the names are made of and show only the tabs that apply. */
+let hasSC=null, sibKey="", sibHit=false;
+function twinsPossible(by){
+  if(hasSC===null)
+    hasSC=Object.keys(D.cat||{}).some(n=>/\.sc(\.|$)/.test(n));
+  if(hasSC)return true;
+  /* a suffix twin can appear as you work, so re-check whenever the set of class
+     names changes - but not on every render, the scan is quadratic */
+  const cls=Object.keys(by).sort(), key=cls.join("|");
+  if(key===sibKey)return sibHit;
+  sibKey=key; sibHit=false;
+  outer:
+  for(const a of cls) for(const b of cls)
+    if(a!==b&&extraToken(a,b)){sibHit=true;break outer;}
+  return sibHit;
+}
+function tuneTabs(by){
+  const multi=Object.keys(by).some(c=>c!==NOCLASS&&by[c].length>1);
+  const show={work:true,pairs:twinsPossible(by),sim:multi,audit:multi,list:true};
+  let fallback=false;
+  for(const b of $("viewseg").children){
+    const on=show[b.dataset.view]!==false;
+    b.hidden=!on;
+    if(!on&&view===b.dataset.view)fallback=true;
+  }
+  if(fallback){
+    view="work";
+    [...$("viewseg").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.view==="work"));
+  }
+  return fallback;
+}
 function render(){
   const done=placed();
   const byAll=liveClasses(true);
+  if(tuneTabs(byAll)){render();return;}
   $("t-cls").textContent=Object.keys(byAll).length-(byAll[NOCLASS]?1:0);
   $("t-un").textContent=(byAll[NOCLASS]||[]).length;
   $("t-done").textContent=Object.keys(done).length;
