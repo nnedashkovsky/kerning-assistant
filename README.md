@@ -1,32 +1,42 @@
 # Kerning class assistant
 
-Ревизия кернинг-классов в браузере. Бросьте `.glyphs`, разберите классы,
-скачайте готовый файл. Ничего не устанавливается, шрифт никуда не отправляется —
-разбор идёт в самой странице.
+Review kerning classes in the browser. Drop in a `.glyphs` file, sort the classes
+out, download the finished font. Nothing is installed and the font never leaves
+your machine — it is read and written in the page itself.
 
-## Что умеет
+**https://nnedashkovsky.github.io/kerning-assistant/**
 
-* **Касса** — берёте знак, инструмент подбирает к нему остальные по профилю
-  просвета и раскладывает кандидатов по полосам близости
-* **Проверка** — существующие классы по разбросу: сверху те, где кто-то выбивается
-* **Парные классы** — двойники: прописные против капители, `@Y` против `@Y.alt01`
-* **Похожие классы** — пары, которым до слияния немного
-* **Все классы** — весь шрифт, включая неразмеченное, с переназначением
-* Лента неточностей: знаки одной формы в разных классах и — отдельно — знаки
-  одной формы с разными полуапрошами (это ошибка спейсинга, а не группировки)
+## What it does
 
-## Как считается близость
+* **Case** — pick a glyph and the assistant gathers its companions by gap profile,
+  laid out in bands of closeness
+* **Review** — the classes already in the font, ranked by spread: the ones where
+  somebody stands out come first
+* **Twin classes** — capitals against small caps, `@Y` against `@Y.alt01`. Their
+  memberships should mirror; the gaps are shown and fixed with one button
+* **Similar classes** — pairs that are nearly one class already
+* **All classes** — the whole font, unassigned glyphs included, with reassignment
 
-Для каждого глифа снимается профиль просвета: на каждой горизонтали расстояние
-от края контура до края площадки. Расстояние между глифами — средневзвешенная
-относительная разница профилей в процентах. Зоны весят по-разному: тело буквы
-1.0, надстрочная 0.75, подстрочная 0.30, акценты над капителью 0.12. Диакритика
-при построении профиля пропускается, поэтому `Aacute` всегда там же, где `A`.
+A running list of findings sits below: glyphs drawn alike but filed apart, and —
+separately — glyphs drawn alike whose sidebearings disagree. The second is a
+spacing bug rather than a grouping one, and the app says so.
 
-## Запись в файл
+## How closeness is measured
 
-Правятся только строки `kernLeft` и `kernRight` тех глифов, которые вы изменили.
-Файл не пересобирается — остальные байты остаются как есть, поэтому пути,
-компоненты, анкоры, кернинг и фичи заведомо не страдают.
+Each glyph gets a gap profile: at every scanline, the distance from the outline to
+the edge of its advance. The distance between two glyphs is the weighted mean
+relative difference between those profiles, in percent. Zones carry different
+weight — body 1.0, above x-height 0.75, below the baseline 0.30, accents above cap
+height 0.12 — so a difference in the body splits a class while one under the
+baseline usually does not. Marks are skipped when profiling, which is why `Aacute`
+always lands wherever `A` does.
 
-## Локально
+## Writing back
+
+Only the `kernLeft` and `kernRight` lines of the glyphs you changed are rewritten.
+The file is not re-serialised, so outlines, components, anchors, kerning and
+features are untouched by construction.
+
+## Locally
+
+`index.html` is self-contained: open it from disk, no server needed.
