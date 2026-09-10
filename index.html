@@ -51,9 +51,10 @@ header .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-t
 .q b{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent)}
 .why{font-size:12.5px;color:var(--muted);margin-bottom:13px}
 .chips{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:14px}
-.chip{width:38px;height:48px;flex:none;border:1px solid var(--line);border-radius:4px;
+.chip{width:52px;height:48px;flex:none;border:1px solid var(--line);border-radius:4px;
   background:var(--surface-2);display:flex;align-items:center;justify-content:center;
-  overflow:visible;position:relative}
+  overflow:hidden;position:relative}
+.chip.loose{overflow:visible;width:auto}
 .chips{align-items:flex-start}
 .chip svg{width:100%;height:100%;overflow:visible}
 .chip path{fill:var(--ink-2)}
@@ -567,7 +568,12 @@ const IDENT = [1, 0, 0, 1, 0, 0];
 function shapeTransform(s) {
   const p = s.pos ? [parseFloat(s.pos[0]), parseFloat(s.pos[1])] : [0, 0];
   const sc = s.scale ? [parseFloat(s.scale[0]), parseFloat(s.scale[1])] : [1, 1];
-  return [sc[0], 0, 0, sc[1], p[0], p[1]];
+  /* Inverted marks are their upright twin turned 180 degrees; ignoring `angle`
+     left them drawn upright and shifted, sailing far out of the frame. */
+  const a = parseFloat(s.angle || 0) * Math.PI / 180;
+  if (!a) return [sc[0], 0, 0, sc[1], p[0], p[1]];
+  const c = Math.cos(a), n = Math.sin(a);
+  return [sc[0] * c, sc[0] * n, -sc[1] * n, sc[1] * c, p[0], p[1]];
 }
 const isMark = name => /comb/.test(name);
 
@@ -1021,22 +1027,45 @@ function collision(name){
 }
 const CH=48;                               /* chip height in px, the scale anchor */
 const YB=()=>D.ybox||[-110,40];
-function chip(n,cls,moveTo){
+/* One tidy cell width for listings, wide enough for most of the font.  Only the
+   Characters view lets cells follow the advance, because that is where you look
+   at shapes closely rather than scan a grid. */
+let cellW=null;
+function cellUnits(){
+  if(cellW!==null)return cellW;
+  const a=[];
+  for(const k in D.paths){
+    const p=D.paths[k];
+    a.push(Math.max(p[1],p[4]!==undefined?p[4]:p[1])-Math.min(0,p[2]!==undefined?p[2]:0));
+  }
+  a.sort((x,y)=>x-y);
+  /* wide enough for 97% of the font: past that a couple of giant swashes would
+     stretch every cell for nothing, and they are legible in Characters anyway */
+  const q=a.length?a[Math.round((a.length-1)*0.97)]:140;
+  return (cellW=Math.max(q,70)+14);
+}
+function chip(n,cls,moveTo,loose){
   const p=D.paths[n];
   const extra=moveTo?' data-move="'+esc(moveTo)+'"':'';
   if(!p)return '<span class="chip txt '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+
     ' title="'+esc(n)+'">'+esc(n).slice(0,12)+'</span>';
   const yb=YB(), H=yb[1]-yb[0], pad=7;
-  /* ink can reach past the advance on either side, so the window holds whichever
-     is wider - otherwise swash tails get cut off */
   const adv=Math.max(p[1]||60,18);
-  const left=Math.min(0,p[2]!==undefined?p[2]:0)-pad;
-  const right=Math.max(adv,p[4]!==undefined?p[4]:adv)+pad;
-  const W=right-left;
-  const px=(W/H)*CH;                       /* one scale for every glyph */
-  return '<span class="chip '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+' title="'+esc(n)+'"'+
-    ' style="width:'+Math.max(20,Math.min(px,150)).toFixed(0)+'px">'+
-    '<svg viewBox="'+left+' '+yb[0]+' '+W.toFixed(0)+' '+H.toFixed(0)+
+  const inkL=Math.min(0,p[2]!==undefined?p[2]:0), inkR=Math.max(adv,p[4]!==undefined?p[4]:adv);
+  let left, W, style="";
+  if(loose){
+    /* ink can reach past the advance either side, so the window holds whichever
+       is wider - swash tails keep their tips */
+    left=inkL-pad; W=(inkR+pad)-left;
+    style=' style="width:'+Math.max(20,Math.min((W/H)*CH,150)).toFixed(0)+'px"';
+  } else {
+    W=cellUnits();
+    left=(inkL+inkR)/2-W/2;                /* same scale, centred, tidy grid */
+    style=' style="width:'+((W/H)*CH).toFixed(0)+'px"';
+  }
+  return '<span class="chip'+(loose?" loose":"")+' '+(cls||"")+'" data-n="'+esc(n)+'"'+extra+
+    ' title="'+esc(n)+'"'+style+'>'+
+    '<svg viewBox="'+left.toFixed(0)+' '+yb[0].toFixed(0)+' '+W.toFixed(0)+' '+H.toFixed(0)+
     '" preserveAspectRatio="xMidYMid meet"><path d="'+p[0]+'"/></svg></span>';
 }
 /* the search box lives inside the block it filters, so redrawing the list tears
@@ -1068,7 +1097,8 @@ function renderCase(){
     '> names under glyphs</label></div>'+
     '<div class="hint" style="margin-bottom:9px">'+(showAll?"Glyphs":"Unassigned")+
     ': <b>'+all.length+'</b>. Click a character and the assistant gathers the rest around it.</div>'+
-    '<div class="case'+(caps?" cap":"")+'" id="case">'+all.slice(0,700).map(n=>chip(n)).join("")+
+    '<div class="case'+(caps?" cap":"")+'" id="case">'+
+    all.slice(0,700).map(n=>chip(n,"",null,true)).join("")+
     (all.length>700?'<span class="chip txt">+'+(all.length-700)+'</span>':"")+'</div></div>';
   $("q").addEventListener("input",e=>{qRaw=e.target.value;keepFocus(renderCase);});
   $("showall").addEventListener("change",e=>{showAll=e.target.checked;renderCase();});
@@ -1109,7 +1139,7 @@ function renderCandidates(){
     '<div class="why">Compared against every glyph of the same kind and case by its gap profile. '+
     'The close ones are ticked already; the rest are your call. “Into this class” on a band '+
     'builds the class straight from it, skipping the picking.</div>'+
-    '<div class="chips">'+chip(seed,"seed")+'</div>';
+    '<div class="chips">'+chip(seed,"seed",null,true)+'</div>';
   let any=false;
   for(const [lo,hi,title] of bands){
     const rows=cand.filter(r=>r[0]>=lo&&r[0]<hi);
@@ -1120,7 +1150,7 @@ function renderCandidates(){
       '<button class="ba" data-band="'+lo+'" data-tip="Tick every character in this band; you can still add or remove before creating the class.">select all</button>'+
       '<button class="bg" data-take="'+lo+'" data-tip="Create the class straight from this band, ignoring anything ticked elsewhere.">into this class</button></div>'+
       '<div class="chips'+(caps?" cap":"")+' band-'+lo+'">'+rows.map(r=>
-        chip(r[1],(picked.has(r[1])?"on":"")+(r[2]?" off":""))).join("")+'</div></div>';
+        chip(r[1],(picked.has(r[1])?"on":"")+(r[2]?" off":""),null,true)).join("")+'</div></div>';
   }
   if(!any)html+='<div class="empty">Nothing close enough — the class will hold one glyph. '+
     'That is fine: a class of one behaves exactly like no class at all.</div>';
@@ -1728,7 +1758,7 @@ function renderFinds(){
           x.actual+'%</b>. Either the spacing or the case of one of them is wrong')+
       '</div>'+
       '<div class="chips">'+chip(x.a,"hot")+chip(x.b,"hot")+'</div><div class="act">'+
-      (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">put in @ anyway'+esc(ca)+'</button>':'')+
+      (ca?'<button data-mv="'+esc(x.b)+'" data-to="'+esc(ca)+'">Same class anyway'+esc(ca)+'</button>':'')+
       '<button class="no" data-fd="'+k+'" data-tip="Set aside — you will fix the spacing in the font itself.">Mark as handled</button></div></div>';
   }).join("");
 }
