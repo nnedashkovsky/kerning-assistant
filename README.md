@@ -1,8 +1,8 @@
 # Kerning class assistant
 
-Review kerning classes in the browser. Drop in a `.glyphs` file, sort the classes
-out, download the finished font. Nothing is installed and the font never leaves
-your machine — it is read and written in the page itself.
+Review kerning classes in the browser. Drop in a `.glyphs` file or a `.ufo`
+folder, sort the classes out, download the result. Nothing is installed and the
+font never leaves your machine — it is read and written in the page itself.
 
 **https://nnedashkovsky.github.io/kerning-assistant/**
 
@@ -33,9 +33,16 @@ always lands wherever `A` does.
 
 ## Writing back
 
-Only the `kernLeft` and `kernRight` lines of the glyphs you changed are rewritten.
-The file is not re-serialised, so outlines, components, anchors, kerning and
-features are untouched by construction.
+**`.glyphs`** — only the `kernLeft` and `kernRight` lines of the glyphs you changed
+are rewritten. The file is not re-serialised, so outlines, components, anchors,
+kerning and features are untouched by construction.
+
+**`.ufo`** — you get a `groups.plist` holding every class the font ends up with:
+the ones already there plus yours. Drop it into the `.ufo` folder over the old
+one. Groups that are not kerning classes are carried across verbatim, and so are
+members the assistant never looked at — blank glyphs like `space`, and the ones
+its naming rules keep out of kerning altogether. Nothing else in the UFO is read
+or written.
 
 ## Locally
 

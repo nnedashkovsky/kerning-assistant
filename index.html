@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>KernClass Assistant</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap">
@@ -273,16 +274,17 @@ body.moving .movebar{display:flex}
 
 <div class="gate" id="gate">
   <h1>KernClass Assistant</h1>
-  <p>Drop a <b>.glyphs</b> file here — the app reads it right in the browser, shows
-     its classes, finds what looks wrong and hands back a finished file. Nothing to
-     install, and the font never leaves your machine.</p>
+  <p>Drop a <b>.glyphs</b> file or a <b>.ufo</b> folder here — the app reads it right
+     in the browser, shows its classes, finds what looks wrong and hands back a
+     finished file. Nothing to install, and the font never leaves your machine.</p>
   <div class="drop" id="drop">
-    <b>Drag a .glyphs file here</b>
-    <span>or click to choose one</span>
+    <b>Drag a .glyphs file or a .ufo folder here</b>
+    <span>or click to choose a file · <a href="#" id="pickdir">choose a .ufo folder</a></span>
     <input type="file" id="file" accept=".glyphs" hidden>
+    <input type="file" id="dir" webkitdirectory directory multiple hidden>
   </div>
   <div class="mpick" id="mpick">
-    <div class="lbl">Master</div>
+    <div class="lbl" id="mlbl">Master</div>
     <div class="mrow" id="mrow"></div>
     <button class="b main" id="go" style="width:100%">Open</button>
     <div class="prog" id="prog"></div>
@@ -314,14 +316,14 @@ body.moving .movebar{display:flex}
     <svg class="sd" viewBox="0 0 34 24" aria-hidden="true">
       <text class="sdg" x="17" y="19" text-anchor="middle">n</text>
       <rect class="sdb" x="17" y="1" width="16" height="22" rx="2"/>
-    </svg><span class="sdn">@MMK_L_</span>
+    </svg><span class="sdn" id="sdnR">@MMK_L_</span>
   </button>
   <button data-side="L" aria-pressed="false"
     data-tip="The left flank of the character — the side that meets whatever came before. This is the class it uses when standing on the right of a pair.">
     <svg class="sd" viewBox="0 0 34 24" aria-hidden="true">
       <text class="sdg" x="17" y="19" text-anchor="middle">n</text>
       <rect class="sdb" x="1" y="1" width="16" height="22" rx="2"/>
-    </svg><span class="sdn">@MMK_R_</span>
+    </svg><span class="sdn" id="sdnL">@MMK_R_</span>
   </button>
 </div>
 
@@ -348,7 +350,7 @@ body.moving .movebar{display:flex}
       <button class="b" id="dl" style="width:100%;margin-top:7px" data-tip="Just the mapping, as JSON — for applying somewhere else or keeping alongside the font.">groups.json only</button>
       <button class="b" id="cp" style="width:100%;margin-top:7px" data-tip="Puts the mapping on the clipboard.">Copy JSON</button>
       <div class="msg" id="msg"></div>
-      <div class="hint" style="margin-top:10px">You get a copy of your file with the classes written in. Anything you did not touch stays exactly as it was — only the lines you changed are rewritten.</div>
+      <div class="hint" style="margin-top:10px" id="finishnote">You get a copy of your file with the classes written in. Anything you did not touch stays exactly as it was — only the lines you changed are rewritten.</div>
     </div>
     <div class="pane" style="margin-top:14px">
       <button class="b" id="reset" style="width:100%" data-tip="Erases every class you made in this session. The font itself is untouched.">Start over</button>
@@ -566,6 +568,7 @@ function compose(a, b) {
 const IDENT = [1, 0, 0, 1, 0, 0];
 
 function shapeTransform(s) {
+  if (s.matrix) return s.matrix;            /* UFO components carry a full matrix */
   const p = s.pos ? [parseFloat(s.pos[0]), parseFloat(s.pos[1])] : [0, 0];
   const sc = s.scale ? [parseFloat(s.scale[0]), parseFloat(s.scale[1])] : [1, 1];
   /* Inverted marks are their upright twin turned 180 degrees; ignoring `angle`
@@ -833,6 +836,246 @@ root.GlyphsWrite = { apply: apply, findGlyphBlocks: findGlyphBlocks };
 
 </script>
 <script>
+/* Reading a UFO in the browser.
+ *
+ * A UFO is a folder of XML: fontinfo.plist for the metrics, groups.plist for the
+ * kerning classes, and one .glif per glyph.  Rather than lean on DOMParser this
+ * carries a small XML reader, so the same code runs under a test harness and in
+ * the page, and there is one path to get wrong instead of two.
+ */
+(function (root) {
+"use strict";
+
+function parseXML(text) {
+  let i = 0;
+  const n = text.length;
+  function skip() {
+    for (;;) {
+      while (i < n && /\s/.test(text[i])) i++;
+      if (text.startsWith("<?", i) || text.startsWith("<!", i)) {
+        const close = text.startsWith("<!--", i) ? "-->" : ">";
+        const j = text.indexOf(close, i);
+        i = j < 0 ? n : j + close.length;
+        continue;
+      }
+      return;
+    }
+  }
+  function attrs() {
+    const out = {};
+    for (;;) {
+      while (i < n && /\s/.test(text[i])) i++;
+      if (i >= n || text[i] === ">" || text[i] === "/") return out;
+      const s = i;
+      while (i < n && !/[\s=\/>]/.test(text[i])) i++;
+      const key = text.slice(s, i);
+      while (i < n && /\s/.test(text[i])) i++;
+      if (text[i] !== "=") { out[key] = ""; continue; }
+      i++;
+      while (i < n && /\s/.test(text[i])) i++;
+      const q = text[i];
+      if (q === '"' || q === "'") {
+        const e = text.indexOf(q, ++i);
+        out[key] = unesc(text.slice(i, e < 0 ? n : e));
+        i = e < 0 ? n : e + 1;
+      } else {
+        const s2 = i;
+        while (i < n && !/[\s>]/.test(text[i])) i++;
+        out[key] = unesc(text.slice(s2, i));
+      }
+    }
+  }
+  function node() {
+    skip();
+    if (i >= n || text[i] !== "<") return null;
+    i++;                                              // <
+    const s = i;
+    while (i < n && !/[\s\/>]/.test(text[i])) i++;
+    const tag = text.slice(s, i);
+    const a = attrs();
+    if (text[i] === "/") { i += 2; return { tag: tag, attrs: a, kids: [], text: "" }; }
+    i++;                                              // >
+    const kids = [];
+    let txt = "";
+    for (;;) {
+      const t0 = i;
+      while (i < n && text[i] !== "<") i++;
+      txt += text.slice(t0, i);
+      if (i >= n) break;
+      if (text.startsWith("</", i)) { i = text.indexOf(">", i) + 1; break; }
+      if (text.startsWith("<!", i) || text.startsWith("<?", i)) { skip(); continue; }
+      const k = node();
+      if (!k) break;
+      kids.push(k);
+    }
+    return { tag: tag, attrs: a, kids: kids, text: unesc(txt.trim()) };
+  }
+  const out = [];
+  for (;;) { const k = node(); if (!k) break; out.push(k); }
+  return out;
+}
+function unesc(s) {
+  return s.indexOf("&") < 0 ? s : s
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
+    .replace(/&amp;/g, "&");
+}
+
+/* ---- plist ---- */
+function plistValue(el) {
+  switch (el.tag) {
+    case "dict": {
+      const out = {};
+      for (let k = 0; k < el.kids.length; k += 2) {
+        const key = el.kids[k], val = el.kids[k + 1];
+        if (!key || key.tag !== "key" || !val) continue;
+        out[key.text] = plistValue(val);
+      }
+      return out;
+    }
+    case "array": return el.kids.map(plistValue);
+    case "integer": case "real": return parseFloat(el.text);
+    case "true": return true;
+    case "false": return false;
+    default: return el.text;
+  }
+}
+function parsePlist(text) {
+  const tree = parseXML(text);
+  const plist = tree.find(t => t.tag === "plist") || tree[0];
+  if (!plist) return {};
+  const body = plist.tag === "plist" ? plist.kids[0] : plist;
+  return body ? plistValue(body) : {};
+}
+
+/* ---- glif ---- */
+function parseGlif(text) {
+  const tree = parseXML(text);
+  const g = tree.find(t => t.tag === "glyph");
+  if (!g) return null;
+  const out = { name: g.attrs.name || "", advance: 0, unicode: null,
+                contours: [], components: [] };
+  for (const k of g.kids) {
+    if (k.tag === "advance") out.advance = parseFloat(k.attrs.width || 0);
+    else if (k.tag === "unicode" && out.unicode === null)
+      out.unicode = parseInt(k.attrs.hex, 16);
+    else if (k.tag === "outline") {
+      for (const o of k.kids) {
+        if (o.tag === "contour") {
+          const pts = o.kids.filter(p => p.tag === "point").map(p => [
+            parseFloat(p.attrs.x || 0), parseFloat(p.attrs.y || 0),
+            p.attrs.type || "offcurve"]);
+          if (pts.length) out.contours.push(pts);
+        } else if (o.tag === "component") {
+          const a = o.attrs;
+          out.components.push({
+            base: a.base,
+            t: [a.xScale === undefined ? 1 : parseFloat(a.xScale),
+                parseFloat(a.xyScale || 0), parseFloat(a.yxScale || 0),
+                a.yScale === undefined ? 1 : parseFloat(a.yScale),
+                parseFloat(a.xOffset || 0), parseFloat(a.yOffset || 0)]
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/* ---- the font, shaped the way the .glyphs reader shapes it ---- */
+const KERN1 = "public.kern1.", KERN2 = "public.kern2.";
+function readFont(files) {
+  const get = p => files.get(p) || files.get("./" + p) || null;
+  const info = get("fontinfo.plist") ? parsePlist(get("fontinfo.plist")) : {};
+  const groups = get("groups.plist") ? parsePlist(get("groups.plist")) : {};
+  const contents = get("glyphs/contents.plist")
+    ? parsePlist(get("glyphs/contents.plist")) : {};
+
+  /* public.kern1 leads a pair, so it describes a glyph's RIGHT flank; kern2 the left */
+  const right = {}, left = {};
+  for (const key in groups) {
+    const list = groups[key] || [];
+    if (key.startsWith(KERN1)) list.forEach(g => right[g] = key.slice(KERN1.length));
+    else if (key.startsWith(KERN2)) list.forEach(g => left[g] = key.slice(KERN2.length));
+  }
+
+  const glyphs = [];
+  for (const name in contents) {
+    const raw = get("glyphs/" + contents[name]);
+    if (!raw) continue;
+    const gl = parseGlif(raw);
+    if (!gl) continue;
+    const shapes = gl.contours.map(pts => ({ nodes: pts.map(p => [p[0], p[1],
+        p[2] === "offcurve" ? "o" : p[2] === "curve" ? "c" : p[2] === "qcurve" ? "q" : "l"]) }))
+      .concat(gl.components.map(c => ({ ref: c.base, matrix: c.t })));
+    glyphs.push({
+      name: name,
+      unicode: gl.unicode === null ? null : gl.unicode.toString(10),
+      export: true, category: null,
+      kernLeft: left[name] === undefined ? null : left[name],
+      kernRight: right[name] === undefined ? null : right[name],
+      layers: [{ layerId: "ufo", associated: null, width: gl.advance, shapes: shapes }]
+    });
+  }
+  return {
+    ufo: true, raw: { groups: groups },
+    upm: parseFloat(info.unitsPerEm || 1000),
+    familyName: info.familyName || "",
+    masters: [{ id: "ufo", name: info.styleName || "Regular", custom: info }],
+    glyphs: glyphs,
+    metrics: {
+      ascender: parseFloat(info.ascender !== undefined ? info.ascender : 800),
+      capHeight: parseFloat(info.capHeight !== undefined ? info.capHeight : 700),
+      xHeight: parseFloat(info.xHeight !== undefined ? info.xHeight : 500),
+      descender: parseFloat(info.descender !== undefined ? info.descender : -200)
+    }
+  };
+}
+
+/* ---- writing groups.plist back ---- */
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+/* `seen` is {R:Set, L:Set}: the glyphs the assistant actually looked at.  Blank
+   glyphs and the ones ruled out by name never reach the analysis, so it has no
+   opinion about them - they stay in whatever group the font already had them
+   in instead of being dropped on the floor. */
+function writeGroups(original, mapping, seen) {
+  const old = original ? parsePlist(original) : {};
+  const out = {};
+  /* anything that is not a kerning class is somebody else's data - keep it */
+  for (const k in old) if (!k.startsWith(KERN1) && !k.startsWith(KERN2)) out[k] = old[k];
+  const add = (prefix, map, known) => {
+    const by = {};
+    for (const k in old) {
+      if (!k.startsWith(prefix)) continue;
+      const kept = (old[k] || []).filter(g => !known || !known.has(g));
+      if (kept.length) by[k.slice(prefix.length)] = kept;
+    }
+    for (const g in map) { const c = map[g]; if (c) (by[c] = by[c] || []).push(g); }
+    for (const c in by) out[prefix + c] = [...new Set(by[c])].sort();
+  };
+  add(KERN1, mapping.R || {}, seen && seen.R);
+  add(KERN2, mapping.L || {}, seen && seen.L);
+  const keys = Object.keys(out).sort();
+  const body = keys.map(k =>
+    "  <key>" + esc(k) + "</key>\n  <array>\n" +
+    (out[k] || []).map(v => "    <string>" + esc(v) + "</string>").join("\n") +
+    "\n  </array>").join("\n");
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" ' +
+    '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n' +
+    '<plist version="1.0">\n<dict>\n' + body + "\n</dict>\n</plist>\n";
+}
+
+root.UFO = { parseXML: parseXML, parsePlist: parsePlist, parseGlif: parseGlif,
+             readFont: readFont, writeGroups: writeGroups, KERN1: KERN1, KERN2: KERN2 };
+})(window);
+
+</script>
+<script>
 /* Turn a dropped .glyphs file into the data the assistant UI expects.
  * Same shape analyze.py produced, built here so nothing has to be installed.
  */
@@ -841,10 +1084,19 @@ root.GlyphsWrite = { apply: apply, findGlyphBlocks: findGlyphBlocks };
 const STEP = 3;
 
 function build(text, masterIndex, onProgress) {
-  const F = root.GlyphsFile.readFont(text);
+  return fromFont(root.GlyphsFile.readFont(text), masterIndex, onProgress, text);
+}
+function buildUFO(files, onProgress) {
+  const F = root.UFO.readFont(files);
+  const d = fromFont(F, 0, onProgress, null);
+  d._ufo = files;
+  d._groupsPlist = files.get("groups.plist") || null;
+  return d;
+}
+function fromFont(F, masterIndex, onProgress, text) {
   const P = root.GlyphProfiles, M = root.GlyphMeta;
   const master = F.masters[masterIndex] || F.masters[0];
-  const mm = root.GlyphsFile.masterMetrics(F, master);
+  const mm = F.metrics || root.GlyphsFile.masterMetrics(F, master);
   const index = {};
   F.glyphs.forEach(g => index[g.name] = g);
 
@@ -929,9 +1181,10 @@ function build(text, masterIndex, onProgress) {
                Math.max(q(bots, 0.98), 0) + 8];
   data._text = text;
   data._masters = F.masters.map(m => m.name);
+  data._kind = F.ufo ? "ufo" : "glyphs";
   return data;
 }
-root.GlyphsLoader = { build: build };
+root.GlyphsLoader = { build: build, buildUFO: buildUFO };
 })(window);
 
 </script>
@@ -2097,6 +2350,28 @@ addEventListener("scroll",hideTip,true);
 document.addEventListener("click",hideTip,true);
 const mapping=()=>JSON.stringify({R:made.R,L:made.L},null,1);
 window.currentMapping=()=>({R:made.R,L:made.L});
+/* groups.plist is rewritten as a whole, so the UFO side needs every class the
+   font will end up with - the ones already in the file plus your changes. */
+window.fullMapping=()=>{
+  const out={R:{},L:{}};
+  for(const s of ["R","L"]){
+    const had=(D.sides[s]&&D.sides[s].group)||{};
+    for(const g in had) if(had[g]) out[s][g]=had[g];
+    for(const g in made[s]){ const c=made[s][g];
+      if(c)out[s][g]=c; else delete out[s][g]; }
+  }
+  return out;
+};
+/* exactly the glyphs the analysis covers, per side */
+window.seenGlyphs=()=>{
+  const seen={R:new Set(),L:new Set()};
+  for(const s of ["R","L"]){
+    const S=D.sides[s]||{};
+    for(const g in (S.group||{}))seen[s].add(g);
+    (S.ungrouped||[]).forEach(g=>seen[s].add(g));
+  }
+  return seen;
+};
 $("dl").addEventListener("click",async()=>{
   const M=$("msg");M.textContent="building…";
   const dl=await (window.claude&&window.claude.use?window.claude.use("downloads"):null);
@@ -2162,10 +2437,69 @@ $("mrow").addEventListener("click",e=>{
   [...e.currentTarget.children].forEach((x,i)=>x.setAttribute("aria-pressed",i===pick));
 });
 function read(file){
+  UFILES=null; $("mlbl").style.display="";
   const r=new FileReader();
   r.onload=()=>offer(r.result,file.name);
   r.onerror=()=>show("The file could not be read.");
   r.readAsText(file);
+}
+/* ---- a UFO arrives as a folder, so it has to be walked and read whole ---- */
+let UFILES=null;
+const txt=f=>new Promise((res,rej)=>{
+  const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsText(f);});
+/* A dropped folder arrives with its own name in front, and it may be nested a
+   level deeper if you hand over the folder the .ufo sits in.  Cut back to the
+   path the UFO spec talks about.  The default layer is always "glyphs" - other
+   layer folders are of no use here, so they are never read. */
+function ufoRel(rel){
+  const m=rel.match(/(?:^|\/)[^/]*\.ufo\/(.+)$/i);
+  if(m)return m[1];
+  const i=rel.indexOf("/");
+  return i<0?rel:rel.slice(i+1);
+}
+function wanted(rel){
+  return /^(fontinfo|groups|metainfo|layercontents)\.plist$/.test(rel) ||
+         /^glyphs\/(contents\.plist|[^/]*\.glif)$/.test(rel);
+}
+async function offerUFO(files,label){
+  UFILES=files;
+  if(!files.get("glyphs/contents.plist")){
+    show("That folder has no glyphs/contents.plist — is it a .ufo?");return;}
+  TEXT=null; MASTERS=[];
+  $("mrow").innerHTML="";
+  $("mlbl").style.display="none";      /* a UFO is one master, so nothing to pick */
+  $("mpick").classList.add("on");
+  show(label+" · "+files.size+" files · UFO");
+}
+async function readDirEntry(entry,pre,files,onCount){
+  if(entry.isFile){
+    const rel=ufoRel(pre?pre+"/"+entry.name:entry.name);
+    if(!wanted(rel))return;
+    await new Promise(res=>entry.file(async f=>{
+      try{files.set(rel,await txt(f));}catch(e){}
+      onCount(files.size); res();
+    },res));
+    return;
+  }
+  /* a UFO has one folder of glyphs that matters; skip the rest before descending */
+  if(entry.name.startsWith("glyphs.")||entry.name==="data"||entry.name==="images")return;
+  const rd=entry.createReader();
+  for(;;){
+    const batch=await new Promise(res=>rd.readEntries(res,()=>res([])));
+    if(!batch.length)break;
+    for(const e of batch) await readDirEntry(e,pre?pre+"/"+entry.name:entry.name,files,onCount);
+  }
+}
+async function readFileList(list){
+  const files=new Map();
+  let n=0;
+  for(const f of list){
+    const rel=ufoRel(f.webkitRelativePath||f.name);
+    if(!wanted(rel))continue;
+    try{files.set(rel,await txt(f));}catch(e){}
+    if(++n%200===0)show("reading… "+n);
+  }
+  return files;
 }
 const drop=$("drop");
 drop.addEventListener("click",()=>$("file").click());
@@ -2174,24 +2508,61 @@ $("file").addEventListener("change",e=>{ if(e.target.files[0])read(e.target.file
   e.preventDefault();drop.classList.add("over");}));
 ["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{
   e.preventDefault();drop.classList.remove("over");}));
-drop.addEventListener("drop",e=>{
+drop.addEventListener("drop",async e=>{
+  const items=e.dataTransfer.items;
+  if(items&&items.length&&items[0].webkitGetAsEntry){
+    const entry=items[0].webkitGetAsEntry();
+    if(entry&&entry.isDirectory){
+      show("reading the folder…");
+      const files=new Map();
+      try{ await readDirEntry(entry,"",files,n=>{ if(n%200===0)show("reading… "+n+" files"); }); }
+      catch(err){ show("Could not read the folder: "+err.message); return; }
+      offerUFO(files,entry.name);
+      return;
+    }
+  }
   const f=e.dataTransfer.files[0];
   if(f)read(f);
+});
+$("pickdir").addEventListener("click",ev=>{ev.preventDefault();$("dir").click();});
+$("dir").addEventListener("change",async e=>{
+  if(!e.target.files.length)return;
+  show("reading the folder…");
+  const files=await readFileList(e.target.files);
+  offerUFO(files,(e.target.files[0].webkitRelativePath||"").split("/")[0]||"UFO");
 });
 window.addEventListener("dragover",e=>e.preventDefault());
 window.addEventListener("drop",e=>e.preventDefault());
 
 $("go").addEventListener("click",()=>{
-  if(!TEXT)return;
+  if(!TEXT&&!UFILES)return;
   show("reading…");
   setTimeout(()=>{
     let D;
-    try{ D=window.GlyphsLoader.build(TEXT,pick,(what,a,b)=>show(what+" "+a+"/"+b)); }
+    try{
+      D=UFILES
+        ? window.GlyphsLoader.buildUFO(UFILES,(what,a,b)=>show(what+" "+a+"/"+b))
+        : window.GlyphsLoader.build(TEXT,pick,(what,a,b)=>show(what+" "+a+"/"+b));
+    }
     catch(e){ show("Parse error: "+e.message); return; }
     window.ASSIST=D;
     $("gate").style.display="none";
     $("app").classList.add("on");
     window.startAssistant();
+    if(D._kind==="ufo"){
+      /* a UFO calls the same two flanks by different names */
+      document.getElementById("sdnR").textContent="public.kern1.";
+      document.getElementById("sdnL").textContent="public.kern2.";
+      document.getElementById("finishnote").textContent=
+        "You get a groups.plist with every class in it \u2014 the ones already in "+
+        "the font plus yours. Put it into the .ufo folder, replacing the old one. "+
+        "Groups that are not kerning classes are carried over untouched.";
+      const b=document.getElementById("dlfont");
+      b.textContent="Apply and download groups.plist";
+      b.dataset.tip="Writes every class - the ones already in the font plus yours - "+
+        "into a fresh groups.plist. Drop it into the .ufo folder, replacing the old one. "+
+        "Groups that are not kerning classes are carried over untouched.";
+    }
     wireDownload(D);
   },30);
 });
@@ -2206,15 +2577,29 @@ function wireDownload(D){
     if(!map||(!Object.keys(map.R||{}).length&&!Object.keys(map.L||{}).length)){
       M.textContent="Nothing to apply yet — you have not changed any class.";return;}
     M.textContent="writing…";
+    const ufo=D._kind==="ufo";
     let res;
-    try{ res=window.GlyphsWrite.apply(D._text,map); }
+    try{
+      res=ufo
+        ? (function(){
+            const full=window.fullMapping();
+            const text=window.UFO.writeGroups(D._groupsPlist,full,window.seenGlyphs());
+            return {text:text,
+                    written:Object.keys(full.R).length+Object.keys(full.L).length,
+                    missing:[]};
+          })()
+        : window.GlyphsWrite.apply(D._text,map);
+    }
     catch(e){ M.textContent="write failed: "+e.message; return; }
-    const fname=(D.family||"font").replace(/\W+/g,"_")+"_grouped.glyphs";
+    const fname=ufo?"groups.plist"
+      :(D.family||"font").replace(/\W+/g,"_")+"_grouped.glyphs";
+    const note=ufo?" characters in classes · put this file into your .ufo folder"
+                  :" properties";
     const dl=await (window.claude&&window.claude.use?window.claude.use("downloads"):null);
     if(dl){
       try{
         const r=await dl.save({filename:fname,data:res.text});
-        M.textContent=(r.status==="saved"?"saved":"delivered")+" · "+res.written+" properties";
+        M.textContent=(r.status==="saved"?"saved":"delivered")+" · "+res.written+note;
       }catch(err){
         M.textContent=err&&err.code==="declined"?"cancelled":"not saved";
       }
@@ -2224,8 +2609,8 @@ function wireDownload(D){
     a.href=URL.createObjectURL(new Blob([res.text],{type:"text/plain"}));
     a.download=fname;a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-    M.textContent="downloaded · "+res.written+" properties"+
-      (res.missing.length?" · "+res.missing.length+" glyphs not found":"");
+    M.textContent="downloaded · "+res.written+note+
+      (res.missing.length?" · "+res.missing.length+" characters not found":"");
   });
 }
 })();
