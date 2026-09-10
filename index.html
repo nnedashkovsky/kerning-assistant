@@ -764,7 +764,7 @@ function nokernReason(name) {
   return null;
 }
 root.GlyphMeta = { category: category, caseClass: caseClass, baseByName: baseByName,
-                   nokernReason: nokernReason };
+                   nokernReason: nokernReason, codepoint: cpOf };
 })(window);
 
 </script>
@@ -856,17 +856,25 @@ function build(text, masterIndex, onProgress) {
   });
   const live = kernable.filter(g => !M.nokernReason(g.name));
 
-  const cat = {}, cse = {};
+  const cat = {}, cse = {}, uni = {};
   for (const g of live) {
     cat[g.name] = M.category(index, g.name);
     cse[g.name] = cat[g.name] === "letter" ? M.caseClass(index, g.name) : null;
+    /* a variant answers to the character it is a variant of, so searching for а
+       reaches a-cy.sc and a-cy.alt02 as well as the plain letter */
+    let cp = M.codepoint(index, g.name);
+    if (cp === null || cp === undefined) {
+      const dot = g.name.indexOf(".");
+      if (dot > 0) cp = M.codepoint(index, g.name.slice(0, dot));
+    }
+    if (cp !== null && cp !== undefined) uni[g.name] = cp;
   }
 
   const data = {
     family: F.familyName, master: master.name, glyphs: live.length,
     ymin: P.YS[0], ystep: (P.YS[1] - P.YS[0]) * STEP,
     xh: mm.xHeight, cap: mm.capHeight, desc: mm.descender,
-    far: P.FAR, floor: 40, cat: cat, case: cse, sides: {}, paths: {}
+    far: P.FAR, floor: 40, cat: cat, case: cse, uni: uni, sides: {}, paths: {}
   };
 
   const scale = 0.09 * (1000 / (mm.capHeight || 700));
@@ -1008,6 +1016,45 @@ function distRow(s,glyph){
   return out;
 }
 
+/* Search by three routes at once: the glyph name, the codepoint, and the
+   character itself — typing а should reach a-cy without knowing it is called
+   that, or that it lives at 0430. */
+let uniIndex=null;
+function byCodepoint(){
+  if(uniIndex)return uniIndex;
+  const m=new Map();
+  for(const n in (D.uni||{})){
+    const cp=D.uni[n];
+    if(!m.has(cp))m.set(cp,[]);
+    m.get(cp).push(n);
+  }
+  return (uniIndex=m);
+}
+function queryPoints(q){
+  const out=new Set();
+  if(!q)return out;
+  const hex=/^(?:u\+)?([0-9a-f]{4,6})$/i.exec(q.trim());
+  if(hex){                                  /* read as a codepoint, not as digits */
+    out.add(parseInt(hex[1],16));
+    return out;
+  }
+  for(const ch of q.trim()){
+    const cp=ch.codePointAt(0);
+    if(cp>32)out.add(cp);
+  }
+  return out;
+}
+function matcher(qRawText){
+  const q=(qRawText||"").trim().toLowerCase();
+  if(!q)return null;
+  const pts=queryPoints(qRawText);
+  const names=new Set();
+  const idx=byCodepoint();
+  pts.forEach(cp=>{const a=idx.get(cp); if(a)a.forEach(n=>names.add(n));});
+  const f=n=>n.toLowerCase().includes(q)||names.has(n);
+  f.byChar=n=>names.has(n);          /* matched the character itself, not the name */
+  return f;
+}
 function placed(){return made[side];}
 function inCase(){
   const done=placed(), S=D.sides[side];
@@ -1015,8 +1062,13 @@ function inCase(){
     ? Object.keys(D.cat||{}).filter(n=>!(n in done))
     : S.ungrouped.filter(n=>!(n in done));
   all=all.slice().sort((a,b)=>a.length-b.length||(a<b?-1:1));
-  const k=qKey();
-  if(k)all=all.filter(n=>n.toLowerCase().includes(k));
+  const hit=matcher(qRaw);
+  if(hit){
+    all=all.filter(hit);
+    /* what you typed as a character outranks a name that merely contains it */
+    all.sort((a,b)=>(hit.byChar(b)?1:0)-(hit.byChar(a)?1:0)||
+                    a.length-b.length||(a<b?-1:1));
+  }
   return all;
 }
 /* who already answers to this name - in the font, or from this session */
@@ -1088,7 +1140,7 @@ function renderCase(){
   const all=inCase();
   $("stagelbl").textContent="Pick a character to start a class from";
   $("stage").innerHTML='<div class="pane">'+
-    '<input class="srch" id="q" placeholder="Find a glyph…" value="'+esc(qRaw)+
+    '<input class="srch" id="q" placeholder="Name, character or codepoint…" value="'+esc(qRaw)+
     '" spellcheck="false" autocomplete="off">'+
     '<div class="togs">'+
     '<label class="tog"><input type="checkbox" id="showall"'+(showAll?" checked":"")+
@@ -1582,19 +1634,18 @@ function renderList(){
   const names=Object.keys(by).sort((a,b)=>
     (a===NOCLASS?1:0)-(b===NOCLASS?1:0)||          /* the unassigned pile goes last */
     by[b].length-by[a].length||a.localeCompare(b));
-  const k=clqKey();
+  const k=clqKey(), hit=matcher(clqRaw);
   let shown=names;
-  if(k){
+  if(hit){
     // a class matched by its own name outranks one matched by a member
     const byName=names.filter(c=>c.toLowerCase().includes(k));
-    const byMember=names.filter(c=>!c.toLowerCase().includes(k)&&
-      by[c].some(g=>g.toLowerCase().includes(k)));
+    const byMember=names.filter(c=>!c.toLowerCase().includes(k)&&by[c].some(hit));
     shown=byName.concat(byMember);
   }
   if(susOnly)shown=shown.filter(c=>by[c].some(g=>sus[g]));
   $("stagelbl").textContent="All classes — click a glyph to reassign it";
   $("stage").innerHTML='<div class="pane" style="margin-bottom:12px">'+
-    '<input class="srch" id="clq" placeholder="Find a class or glyph…" value="'+esc(clqRaw)+
+    '<input class="srch" id="clq" placeholder="Class, name, character or codepoint…" value="'+esc(clqRaw)+
     '" spellcheck="false" autocomplete="off">'+
     '<label class="tog" style="margin:0 0 7px"><input type="checkbox" id="susonly"'+
     (susOnly?" checked":"")+'> only classes holding suspect glyphs</label>'+
@@ -1617,7 +1668,7 @@ function renderList(){
         '<div class="chips'+(caps?" cap":"")+'">'+
         (clexp.has(c)?mem:mem.slice(0,60))
           .map(n=>chip(n,(csel.has(n)?"pick":"")+(sus[n]?" sus":"")+
-            (k&&n.toLowerCase().includes(k)?" hot":""))).join("")+
+            (hit&&hit(n)?" hot":""))).join("")+
         (mem.length>60
           ? '<span class="chip txt more" data-more="'+esc(c)+'">'+
             (clexp.has(c)?"collapse":"+"+(mem.length-60))+'</span>'
