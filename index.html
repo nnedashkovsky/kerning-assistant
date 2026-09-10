@@ -259,6 +259,15 @@ body.moving .movebar{display:flex}
 .rc{font-size:11.5px;color:var(--faint)}
 .chip.rg{cursor:pointer}
 .chip.rg:hover{border-color:var(--accent)}
+.rp+.rp{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.rp .pl{font-size:10.5px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:8px}
+.fw{display:flex;flex-wrap:wrap;gap:4px}
+.fp{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;max-width:96px}
+.fp i{font-family:var(--mono);font-style:normal;font-size:8.5px;color:var(--accent);
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp:hover .chip{border-color:var(--accent)}
+.fp.off{opacity:.3}
 
 .gate{max-width:640px;margin:12vh auto;text-align:center;padding:0 20px}
 .gate h1{font-family:var(--serif);font-size:44px;font-weight:400;margin-bottom:10px}
@@ -1116,17 +1125,17 @@ function fromFont(F, masterIndex, onProgress, text) {
   const index = {};
   F.glyphs.forEach(g => index[g.name] = g);
 
-  const kernable = F.glyphs.filter(g => {
-    if (!g.export) return false;
+  /* Set-aside glyphs stay out of the shape analysis - a blank has no profile and
+     a component part has no business in a cluster - but the rules still need to
+     see them, otherwise the spaces and the tabular figures nobody kerns simply
+     never get a class written at all. */
+  const live = [], aside = {};
+  for (const g of F.glyphs) {
+    if (!g.export) continue;
     const L = g.layers.find(l => l.layerId === master.id) ||
               g.layers.find(l => l.associated === master.id);
-    return !!(L && L.shapes && L.shapes.length);
-  });
-  /* Set-aside glyphs stay out of the shape analysis - they have no business in
-     a cluster - but the rules still need to see them, otherwise the tabular
-     figures nobody kerns simply never get a class written at all. */
-  const live = [], aside = {};
-  for (const g of kernable) {
+    if (!L) continue;
+    if (!(L.shapes && L.shapes.length)) { aside[g.name] = "blank"; continue; }
     const why = M.nokernReason(g.name);
     if (why) aside[g.name] = why; else live.push(g);
   }
@@ -1574,21 +1583,128 @@ function commit(){
   save();render();
 }
 
+/* Latin, Cyrillic and Greek letters that are the same drawing.  Held as
+   codepoints rather than names because the same font uses both `A-cy` and
+   `afii10017`, and both reach here as 0x410 either way.  The first codepoint
+   present in the font leads; the rest follow it, suffix for suffix, so
+   `A-cy.sc` joins whatever `A.sc` is in and never what `A` is in. */
+const HOMO=[
+ [0x41,0x410,0x391],[0x42,0x412,0x392],[0x43,0x421],[0x45,0x415,0x395],
+ [0x48,0x41D,0x397],[0x49,0x406,0x399],[0x4A,0x408],[0x4B,0x41A,0x39A],
+ [0x4D,0x41C,0x39C],[0x4E,0x39D],[0x4F,0x41E,0x39F],[0x50,0x420,0x3A1],
+ [0x53,0x405],[0x54,0x422,0x3A4],[0x58,0x425,0x3A7],[0x59,0x3A5],[0x5A,0x396],
+ [0x61,0x430],[0x63,0x441],[0x65,0x435],[0x69,0x456],[0x6A,0x458],
+ [0x6F,0x43E,0x3BF],[0x70,0x440],[0x73,0x455],[0x78,0x445]
+];
+const SPACES=/^(space|nbspace|uni00A0|uni202F|figurespace|thinspace|hairspace|punctuationspace|enspace|emspace|enquad|emquad|sixperemspace|fourperemspace|threeperemspace|zerowidthspace|uniFEFF|uni200B)$/;
+
 /* ---------- common cases ----------
    Patterns that hold in most fonts.  Each is a proposal and never an automatic
    edit: it says what it found, draws the glyphs and lets you rename the class or
-   drop members before anything is written.  `pick` gets every glyph name in the
-   font, set-aside ones included, and returns the members it claims. */
+   drop members before anything is written.
+
+   A rule is one of two shapes.  A `set` rule owns one or more parts, each a
+   fixed list of glyphs going into a class you can rename.  A `follow` rule has
+   no name of its own: it plans, per side, which glyph joins which existing
+   class - either the class its twin already sits in, or one derived from it. */
 const RULES=[
-{id:"tabular",
- title:"Tabular figures do not kern",
+{id:"tabular", title:"Tabular figures do not kern",
  why:"Fixed-width figures are drawn to line up in columns. Kerning them would pull the columns crooked.",
- into:"NOKERN",
- pick:U=>U.filter(n=>/\.(tf|tosf|tab)(\.|$)/.test(n))},
-{id:"dashes",
- title:"The dashes belong together",
+ parts:[{key:"a", into:"NOKERN", pick:U=>U.filter(n=>/\.(tf|tosf|tab)(\.|$)/.test(n))}]},
+
+{id:"marks", title:"Combining accents do not kern",
+ why:"A combining accent has no advance of its own — it is placed on the letter, never beside it.",
+ parts:[{key:"a", into:"NOKERN", pick:U=>U.filter(n=>/comb(-|\.|$)/.test(n))}]},
+
+{id:"parts", title:"Component parts do not kern",
+ why:"A glyph whose name starts with an underscore is a piece other glyphs are built from. It never sets on its own.",
+ parts:[{key:"a", into:"NOKERN", pick:U=>U.filter(n=>/^_/.test(n))}]},
+
+{id:"spaces", title:"The spaces share a class",
+ why:"Every space is blank; only the advance differs. Whatever kerns against one kerns against all of them.",
+ parts:[{key:"a", fallback:"space", pick:U=>U.filter(n=>SPACES.test(n))}]},
+
+{id:"fractions", title:"Numerators and denominators keep to themselves",
+ why:"Raised and lowered figures only ever meet each other and the fraction bar, never ordinary text.",
+ parts:[{key:"n", label:"numerators", into:"numr",
+         pick:U=>U.filter(n=>/\.numr(\.|$)/.test(n))},
+        {key:"d", label:"denominators", into:"dnom",
+         pick:U=>U.filter(n=>/\.dnom(\.|$)/.test(n))}]},
+
+{id:"circled", title:"Circled characters share a class",
+ why:"The ring is the shape that meets the neighbour, and it is the same ring on all of them.",
+ parts:[{key:"a", fallback:"circled",
+         pick:U=>U.filter(n=>/\.(circled|blackCircled)(\.|$)/.test(n))}]},
+
+{id:"dashes", title:"The dashes belong together",
  why:"Hyphen, en dash and em dash differ in length, not in the way either end meets a neighbour.",
- pick:U=>U.filter(n=>/^(hyphen|endash|emdash|figuredash|horizontalbar|minus|uni2212)$/.test(n))}
+ parts:[{key:"a", fallback:"hyphen",
+         pick:U=>U.filter(n=>/^(hyphen|endash|emdash|figuredash|horizontalbar|minus|uni2212)$/.test(n))}]},
+
+{id:"periods", title:"Point, comma and ellipsis belong together",
+ why:"All three sit on the baseline and present the same small mass to whatever stands beside them.",
+ parts:[{key:"a", fallback:"period",
+         pick:U=>U.filter(n=>/^(period|comma|ellipsis)$/.test(n))}]},
+
+{id:"colons", title:"Colon and semicolon belong together",
+ why:"They share the upper dot and differ only below the baseline, where little kerning happens.",
+ parts:[{key:"a", fallback:"colon",
+         pick:U=>U.filter(n=>/^(colon|semicolon)$/.test(n))}]},
+
+{id:"brackets", title:"Brackets group by which way they open",
+ why:"What matters is the side that faces the text: every opening bracket presents the same face, and so does every closing one.",
+ parts:[{key:"o", label:"opening", fallback:"parenleft",
+         pick:U=>U.filter(n=>/^(parenleft|bracketleft|braceleft)$/.test(n))},
+        {key:"c", label:"closing", fallback:"parenright",
+         pick:U=>U.filter(n=>/^(parenright|bracketright|braceright)$/.test(n))}]},
+
+{id:"guillemets", title:"Guillemets group by direction",
+ why:"The single and double forms point the same way and present the same wedge to the text.",
+ parts:[{key:"l", label:"pointing left", fallback:"guillemotleft",
+         pick:U=>U.filter(n=>/^(guillemotleft|guilsinglleft)$/.test(n))},
+        {key:"r", label:"pointing right", fallback:"guillemotright",
+         pick:U=>U.filter(n=>/^(guillemotright|guilsinglright)$/.test(n))}]},
+
+{id:"caseheight", title:"Case-height punctuation runs parallel", kind:"follow",
+ why:"A .case glyph is the same mark drawn taller, for setting between capitals. It wants its own class beside the normal one, not the same class and not none.",
+ plan:side=>{
+   const out=[];
+   for(const n of ruleUniverse()){
+     if(!/\.case(\.|$)/.test(n))continue;
+     const base=n.replace(/\.case(?=\.|$)/,"");
+     if(base===n)continue;
+     const c=groupOn(side,base);
+     if(!c)continue;
+     const want=c==="NOKERN"?"NOKERN":c+".case";
+     if(groupOn(side,n)===want)continue;
+     out.push([n,want,base]);
+   }
+   return out;
+ }},
+
+{id:"scripts", title:"The same letter in another script joins it", kind:"follow",
+ why:"Latin A, Cyrillic А and Greek Α are one drawing. Splitting them by script doubles every class and buys nothing.",
+ plan:side=>{
+   const idx=byCodepoint(), out=[];
+   for(const set of HOMO){
+     let li=-1;
+     for(let k=0;k<set.length;k++) if(idx.get(set[k])){li=k;break;}
+     if(li<0)continue;
+     const bySuf={};
+     for(const n of idx.get(set[li])){const i=n.indexOf(".");bySuf[i<0?"":n.slice(i)]=n;}
+     for(let k=li+1;k<set.length;k++){
+       const arr=idx.get(set[k]); if(!arr)continue;
+       for(const n of arr){
+         const i=n.indexOf("."), leader=bySuf[i<0?"":n.slice(i)];
+         if(!leader||leader===n)continue;
+         const c=groupOn(side,leader);
+         if(!c||groupOn(side,n)===c)continue;
+         out.push([n,c,leader]);
+       }
+     }
+   }
+   return out;
+ }}
 ];
 let rex={}, rname={}, rskip={};
 function ruleUniverse(){
@@ -1600,38 +1716,66 @@ function groupOn(s,n){
   return made[s][n]||D.sides[s].group[n]||
          ((D.asideGroup&&D.asideGroup[s])?D.asideGroup[s][n]:null)||null;
 }
-/* what to call the class: the rule may say, otherwise go with the group most of
-   the members already sit in, otherwise the shortest name among them */
-function ruleName(r,members,s){
-  if(rname[r.id]&&rname[r.id][s]!==undefined)return rname[r.id][s];
-  if(r.into)return r.into;
+const rkey=(r,p)=>r.id+"|"+p.key;
+function exOf(k){return rex[k]||(rex[k]=new Set());}
+/* what to call the class: your own edit first, then the name the rule insists
+   on, then the group most of the members already sit in, then the rule's
+   suggestion, and only then the shortest name among them */
+function partName(r,p,members,s){
+  const k=rkey(r,p);
+  if(rname[k]&&rname[k][s]!==undefined)return rname[k][s];
+  if(p.into)return p.into;
   const c={};
   for(const n of members){const g=groupOn(s,n); if(g)c[g]=(c[g]||0)+1;}
   const best=Object.keys(c).sort((a,b)=>c[b]-c[a]||(a<b?-1:1))[0];
   if(best&&c[best]>1)return best;
+  if(p.fallback)return p.fallback;
   return members.slice().sort((a,b)=>a.length-b.length||(a<b?-1:1))[0]||"";
 }
 function ruleHits(){
   const U=ruleUniverse(), out=[];
   for(const r of RULES){
     if(rskip[r.id])continue;
-    const all=r.pick(U);
-    if(all.length<2)continue;
-    const ex=rex[r.id]||(rex[r.id]=new Set());
-    const keep=all.filter(n=>!ex.has(n));
-    const name={R:ruleName(r,all,"R"),L:ruleName(r,all,"L")};
-    const todo={R:keep.filter(n=>groupOn("R",n)!==name.R),
-                L:keep.filter(n=>groupOn("L",n)!==name.L)};
-    if(!todo.R.length&&!todo.L.length)continue;   /* already the way it asks */
-    out.push({r:r,all:all,keep:keep,name:name,todo:todo});
+    if(r.kind==="follow"){
+      const ex=exOf(r.id);
+      const plan={};
+      let n=0;
+      for(const s of ["R","L"]){
+        plan[s]=r.plan(s).filter(row=>!ex.has(row[0]));
+        n+=plan[s].length;
+      }
+      if(!n)continue;
+      out.push({r:r,follow:true,plan:plan,n:n});
+      continue;
+    }
+    const parts=[];
+    let n=0;
+    for(const p of r.parts){
+      const all=p.pick(U);
+      if(all.length<2)continue;
+      const ex=exOf(rkey(r,p));
+      const keep=all.filter(g=>!ex.has(g));
+      const name={R:partName(r,p,all,"R"),L:partName(r,p,all,"L")};
+      const todo={R:keep.filter(g=>groupOn("R",g)!==name.R),
+                  L:keep.filter(g=>groupOn("L",g)!==name.L)};
+      n+=todo.R.length+todo.L.length;
+      parts.push({p:p,all:all,keep:keep,name:name,todo:todo});
+    }
+    if(!n)continue;                       /* already the way it asks */
+    out.push({r:r,parts:parts,n:n});
   }
   return out;
 }
 function applyRule(h){
-  const n=h.todo.R.length+h.todo.L.length;
-  snapshot(h.r.title.toLowerCase()+" ("+n+")");
-  h.todo.R.forEach(g=>{made.R[g]=h.name.R;});
-  h.todo.L.forEach(g=>{made.L[g]=h.name.L;});
+  snapshot(h.r.title.toLowerCase()+" ("+h.n+")");
+  if(h.follow){
+    for(const s of ["R","L"]) h.plan[s].forEach(row=>{made[s][row[0]]=row[1];});
+  } else {
+    for(const q of h.parts){
+      q.todo.R.forEach(g=>{made.R[g]=q.name.R;});
+      q.todo.L.forEach(g=>{made.L[g]=q.name.L;});
+    }
+  }
   save();render();
 }
 function renderRules(){
@@ -1642,22 +1786,48 @@ function renderRules(){
       'knows about either does not occur in this font or is already the way it would ask for.</div>';
     return;}
   $("stage").innerHTML=hits.map(h=>{
-    const r=h.r, ex=rex[r.id];
-    const one=h.name.R===h.name.L;
-    const field=(s,lab)=>'<label class="rf"><span>'+lab+'</span>'+
-      '<input data-rn="'+esc(r.id)+'" data-rs="'+s+'" value="'+esc(h.name[s])+'" spellcheck="false"></label>';
+    const r=h.r;
+    let body;
+    if(h.follow){
+      /* both flanks in one list: a follow rule often has something to say about
+         one side only, and a card showing just the side you happen to be on
+         came out empty with an Apply button under it */
+      const ex=exOf(r.id), byG={};
+      for(const s of ["R","L"])
+        for(const row of r.plan(s)) (byG[row[0]]=byG[row[0]]||{})[s]=row[1];
+      const rows=Object.keys(byG).sort();
+      const lab=g=>{const v=byG[g];
+        return v.R===v.L||!v.R||!v.L ? (v.R||v.L) : "R:"+v.R+" L:"+v.L;};
+      body='<div class="rc" style="margin-bottom:8px">'+rows.length+
+        ' character'+(rows.length===1?"":"s")+' — click one to leave it out</div>'+
+        '<div class="fw">'+
+        rows.slice(0,60).map(g=>
+          '<span class="fp'+(ex.has(g)?" off":"")+'" data-fp="'+esc(g)+'" title="'+
+          esc(g+" \u2192 "+lab(g))+'">'+chip(g)+'<i>'+esc(lab(g))+'</i></span>').join("")+
+        (rows.length>60?'<span class="chip txt">+'+(rows.length-60)+'</span>':"")+
+        '</div>';
+    } else {
+      body=h.parts.map(q=>{
+        const k=rkey(r,q.p), ex=exOf(k), one=q.name.R===q.name.L;
+        const field=(s,lab)=>'<label class="rf"><span>'+lab+'</span>'+
+          '<input data-rn="'+esc(k)+'" data-rs="'+s+'" value="'+esc(q.name[s])+
+          '" spellcheck="false"></label>';
+        return '<div class="rp" data-part="'+esc(k)+'">'+
+          (q.p.label?'<div class="pl">'+esc(q.p.label)+'</div>':'')+
+          '<div class="rrow">'+
+          (one?field("R","class"):field("R","right flank")+field("L","left flank"))+
+          '<span class="rc">'+q.keep.length+' of '+q.all.length+
+          ' — click a character to leave it out</span></div>'+
+          '<div class="chips'+(caps?" cap":"")+'">'+
+          q.all.map(n=>chip(n,(ex.has(n)?"off ":"")+"rg")).join("")+'</div></div>';
+      }).join("");
+    }
     return '<div class="np" data-rule="'+esc(r.id)+'">'+
       '<div class="h"><span class="t"><b>'+esc(r.title)+'</b></span>'+
-      '<span class="a"><button class="y" data-rok="'+esc(r.id)+'">Apply to '+
-        (h.todo.R.length+h.todo.L.length)+'</button>'+
+      '<span class="a"><button class="y" data-rok="'+esc(r.id)+'">Apply to '+h.n+'</button>'+
       '<button data-rno="'+esc(r.id)+'">Skip</button></span></div>'+
       '<div class="why" style="margin:-4px 0 10px">'+esc(r.why)+'</div>'+
-      '<div class="rrow">'+(one?field("R","class"):field("R","right flank")+field("L","left flank"))+
-        '<span class="rc">'+h.keep.length+' of '+h.all.length+
-        ' — click a character to leave it out</span></div>'+
-      '<div class="chips'+(caps?" cap":"")+'">'+
-      h.all.map(n=>chip(n,(ex.has(n)?"off ":"")+"rg")).join("")+
-      '</div></div>';
+      body+'</div>';
   }).join("");
 }
 /* ---------- what already exists, and what looks wrong in it ---------- */
@@ -2269,8 +2439,13 @@ $("stage").addEventListener("click",e=>{
     if(no){rskip[no.dataset.rno]=1;save();render();return;}
     const c=e.target.closest(".chip.rg");
     if(c&&c.dataset.n){
-      const id=c.closest("[data-rule]").dataset.rule, s=rex[id]||(rex[id]=new Set());
+      const s=exOf(c.closest("[data-part]").dataset.part);
       s.has(c.dataset.n)?s.delete(c.dataset.n):s.add(c.dataset.n);
+      renderRules();return;}
+    const fp=e.target.closest(".fp");
+    if(fp){
+      const s=exOf(fp.closest("[data-rule]").dataset.rule);
+      s.has(fp.dataset.fp)?s.delete(fp.dataset.fp):s.add(fp.dataset.fp);
       renderRules();return;}
     return;
   }
@@ -2421,15 +2596,16 @@ $("mine").addEventListener("click",e=>{
 $("stage").addEventListener("input",e=>{
   const f=e.target.closest("[data-rn]");
   if(!f)return;
-  const id=f.dataset.rn;
-  (rname[id]=rname[id]||{})[f.dataset.rs]=f.value.trim();
-  /* a two-sided rule shown as one field keeps both sides in step - and the
-     count has to be taken after that, not before */
+  const k=f.dataset.rn;
+  (rname[k]=rname[k]||{})[f.dataset.rs]=f.value.trim();
+  /* a part shown as one field keeps both sides in step - and the count has to be
+     taken after that, not before */
   if(f.parentNode.parentNode.querySelectorAll("[data-rn]").length===1)
-    rname[id][f.dataset.rs==="R"?"L":"R"]=f.value.trim();
-  const h=ruleHits().find(x=>x.r.id===id);
-  const btn=f.closest("[data-rule]").querySelector("[data-rok]");
-  if(btn&&h)btn.textContent="Apply to "+(h.todo.R.length+h.todo.L.length);
+    rname[k][f.dataset.rs==="R"?"L":"R"]=f.value.trim();
+  const box=f.closest("[data-rule]");
+  const h=ruleHits().find(x=>x.r.id===box.dataset.rule);
+  const btn=box.querySelector("[data-rok]");
+  if(btn&&h)btn.textContent="Apply to "+h.n;
 });
 $("undo").addEventListener("click",()=>{nprops=[];renderNext();undo();});
 $("learn").addEventListener("change",e=>{

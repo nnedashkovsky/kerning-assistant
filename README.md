@@ -15,8 +15,13 @@ font never leaves your machine — it is read and written in the page itself.
 * **Twin classes** — capitals against small caps, `@Y` against `@Y.alt01`. Their
   memberships should mirror; the gaps are shown and fixed with one button
 * **Similar classes** — pairs that are nearly one class already
-* **Common cases** — patterns that hold in most fonts, offered as proposals you
-  can edit: rename the class, drop members, apply or skip
+* **Common cases** — twelve patterns that hold in most fonts, offered as
+  proposals you can edit: rename the class, click a character to leave it out,
+  apply or skip. Tabular figures, combining accents, component parts and the
+  spaces; numerators and denominators; circled characters; the dashes; point,
+  comma and ellipsis; colon and semicolon; brackets and guillemets by direction;
+  case-height punctuation running parallel to the normal kind; and the same
+  letter in another script joining the class its twin is already in
 * **All classes** — the whole font, unassigned glyphs included, with reassignment
 
 A running list of findings sits below: glyphs drawn alike but filed apart, and —
