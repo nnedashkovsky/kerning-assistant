@@ -248,6 +248,17 @@ body.moving .movebar{display:flex}
 .np .h .a button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:5px;
   padding:6px 12px;font-size:12.5px}
 .np .h .a .y{border-color:var(--accent);background:var(--accent);color:var(--on-accent);font-weight:500}
+.np .why{font-size:12.5px;color:var(--muted);line-height:1.45}
+.rrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.rf{display:flex;align-items:center;gap:7px}
+.rf span{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint)}
+.rf input{font-family:var(--mono);font-size:12.5px;padding:6px 10px;border:1px solid var(--line-2);
+  border-radius:5px;background:var(--surface);color:var(--ink);width:150px}
+.rf input:focus{outline:0;border-color:var(--accent)}
+.rc{font-size:11.5px;color:var(--faint)}
+.chip.rg{cursor:pointer}
+.chip.rg:hover{border-color:var(--accent)}
 
 .gate{max-width:640px;margin:12vh auto;text-align:center;padding:0 20px}
 .gate h1{font-family:var(--serif);font-size:44px;font-weight:400;margin-bottom:10px}
@@ -278,7 +289,7 @@ body.moving .movebar{display:flex}
      in the browser, shows its classes, finds what looks wrong and hands back a
      finished file. Nothing to install, and the font never leaves your machine.</p>
   <div class="drop" id="drop">
-    <b>Drag a .glyphs file or a .ufo folder here</b>
+    <b>Drag a .glyphs file or a .ufo here</b>
     <span>or click to choose a file · <a href="#" id="pickdir">choose a .ufo folder</a></span>
     <input type="file" id="file" accept=".glyphs" hidden>
     <input type="file" id="dir" webkitdirectory directory multiple hidden>
@@ -304,6 +315,7 @@ body.moving .movebar{display:flex}
 
 <div class="seg" id="viewseg">
   <button data-view="work" aria-pressed="true" data-tip="Pick a character and the app gathers everything that could share its class, sorted by how close it sits.">Characters</button>
+  <button data-view="rules" aria-pressed="false" data-tip="Patterns that hold in most fonts — tabular figures nobody kerns, dashes that belong together. Each one is a proposal: change the class name, drop members, apply or skip.">Common cases</button>
   <button data-view="pairs" aria-pressed="false" data-tip="Classes that ought to mirror each other — capitals against small caps, @Y against @Y.alt01. A gap in the mirror is usually an oversight.">Twin classes</button>
   <button data-view="sim" aria-pressed="false" data-tip="Pairs of classes close enough to be one. Merge them, or mark them as deliberately apart.">Similar classes</button>
   <button data-view="audit" aria-pressed="false" data-tip="The classes already in the font, ranked by spread: how far the odd one out sits from the class core.">Review</button>
@@ -1049,9 +1061,13 @@ function writeGroups(original, mapping, seen) {
   for (const k in old) if (!k.startsWith(KERN1) && !k.startsWith(KERN2)) out[k] = old[k];
   const add = (prefix, map, known) => {
     const by = {};
+    /* the mapping speaks for these, so they must not be carried over as well -
+       a set-aside glyph the rules just parked would land in two groups at once */
+    const spoken = new Set(Object.keys(map));
+    if (known) known.forEach(g => spoken.add(g));
     for (const k in old) {
       if (!k.startsWith(prefix)) continue;
-      const kept = (old[k] || []).filter(g => !known || !known.has(g));
+      const kept = (old[k] || []).filter(g => !spoken.has(g));
       if (kept.length) by[k.slice(prefix.length)] = kept;
     }
     for (const g in map) { const c = map[g]; if (c) (by[c] = by[c] || []).push(g); }
@@ -1106,7 +1122,14 @@ function fromFont(F, masterIndex, onProgress, text) {
               g.layers.find(l => l.associated === master.id);
     return !!(L && L.shapes && L.shapes.length);
   });
-  const live = kernable.filter(g => !M.nokernReason(g.name));
+  /* Set-aside glyphs stay out of the shape analysis - they have no business in
+     a cluster - but the rules still need to see them, otherwise the tabular
+     figures nobody kerns simply never get a class written at all. */
+  const live = [], aside = {};
+  for (const g of kernable) {
+    const why = M.nokernReason(g.name);
+    if (why) aside[g.name] = why; else live.push(g);
+  }
 
   const cat = {}, cse = {}, uni = {};
   for (const g of live) {
@@ -1126,8 +1149,14 @@ function fromFont(F, masterIndex, onProgress, text) {
     family: F.familyName, master: master.name, glyphs: live.length,
     ymin: P.YS[0], ystep: (P.YS[1] - P.YS[0]) * STEP,
     xh: mm.xHeight, cap: mm.capHeight, desc: mm.descender,
-    far: P.FAR, floor: 40, cat: cat, case: cse, uni: uni, sides: {}, paths: {}
+    far: P.FAR, floor: 40, cat: cat, case: cse, uni: uni, sides: {}, paths: {},
+    aside: aside, asideGroup: { R: {}, L: {} }
   };
+  for (const name in aside) {
+    const g = index[name];
+    if (g.kernRight) data.asideGroup.R[name] = g.kernRight;
+    if (g.kernLeft) data.asideGroup.L[name] = g.kernLeft;
+  }
 
   const scale = 0.09 * (1000 / (mm.capHeight || 700));
   let done = 0;
@@ -1179,6 +1208,13 @@ function fromFont(F, masterIndex, onProgress, text) {
     ? arr[Math.min(arr.length - 1, Math.max(0, Math.round((arr.length - 1) * p)))] : 0;
   data.ybox = [Math.min(q(tops, 0.02), -(mm.capHeight * scale)) - 8,
                Math.max(q(bots, 0.98), 0) + 8];
+  /* after ybox, so a component part cannot stretch the frame the letters share */
+  for (const name in aside) {
+    const r = P.svgPath(F, index, name, master.id, scale);
+    const L = index[name].layers.find(l => l.layerId === master.id) ||
+              index[name].layers.find(l => l.associated === master.id);
+    if (r) data.paths[name] = [r.d, Math.round(L.width * scale * 10) / 10].concat(r.box);
+  }
   data._text = text;
   data._masters = F.masters.map(m => m.name);
   data._kind = F.ufo ? "ufo" : "glyphs";
@@ -1208,9 +1244,10 @@ let fdis={};        /* findings marked as understood, kept between sessions */
 try{learn=localStorage.getItem("kernassist:learn")!=="0";}catch(e){}
 try{caps=localStorage.getItem("kernassist:caps")==="1";}catch(e){}
 try{const s=localStorage.getItem(KEY);
-  if(s){const o=JSON.parse(s);made=Object.assign({R:{},L:{}},o.made||{});fdis=o.fdis||{};}
+  if(s){const o=JSON.parse(s);made=Object.assign({R:{},L:{}},o.made||{});fdis=o.fdis||{};
+        rskip=o.rskip||{};}
 }catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({made,fdis}));}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({made,fdis,rskip}));}catch(e){}};
 /* undo keeps whole snapshots: the state is a few thousand short strings, so
    copying it is cheaper than replaying inverse operations correctly */
 const hist=[];
@@ -1228,7 +1265,12 @@ function undo(){
   const anchor=seed;
   seed=null;cand=null;picked.clear();
   save();
-  nprops=nextProps(took,nm,anchor,maxd);
+  /* the name field only exists while the Characters view is up; reading it as a
+     bare global threw everywhere else, and undo then reverted the state without
+     ever repainting */
+  const fld=$("nm");
+  const target=fld?fld.value.trim():(anchor?classOf(anchor):"");
+  nprops=nextProps(took.filter(Boolean),target,anchor,maxd);
   render();renderNext(true);
 }
 document.title="KernClass — "+(D.family||"");
@@ -1338,8 +1380,9 @@ const YB=()=>D.ybox||[-110,40];
 let cellW=null;
 function cellUnits(){
   if(cellW!==null)return cellW;
-  const a=[];
+  const a=[], off=D.aside||{};
   for(const k in D.paths){
+    if(off[k])continue;
     const p=D.paths[k];
     a.push(Math.max(p[1],p[4]!==undefined?p[4]:p[1])-Math.min(0,p[2]!==undefined?p[2]:0));
   }
@@ -1531,6 +1574,92 @@ function commit(){
   save();render();
 }
 
+/* ---------- common cases ----------
+   Patterns that hold in most fonts.  Each is a proposal and never an automatic
+   edit: it says what it found, draws the glyphs and lets you rename the class or
+   drop members before anything is written.  `pick` gets every glyph name in the
+   font, set-aside ones included, and returns the members it claims. */
+const RULES=[
+{id:"tabular",
+ title:"Tabular figures do not kern",
+ why:"Fixed-width figures are drawn to line up in columns. Kerning them would pull the columns crooked.",
+ into:"NOKERN",
+ pick:U=>U.filter(n=>/\.(tf|tosf|tab)(\.|$)/.test(n))},
+{id:"dashes",
+ title:"The dashes belong together",
+ why:"Hyphen, en dash and em dash differ in length, not in the way either end meets a neighbour.",
+ pick:U=>U.filter(n=>/^(hyphen|endash|emdash|figuredash|horizontalbar|minus|uni2212)$/.test(n))}
+];
+let rex={}, rname={}, rskip={};
+function ruleUniverse(){
+  if(!D._universe)D._universe=Object.keys(D.cat||{}).concat(Object.keys(D.aside||{})).sort();
+  return D._universe;
+}
+/* the class a glyph answers to right now, set-aside glyphs included */
+function groupOn(s,n){
+  return made[s][n]||D.sides[s].group[n]||
+         ((D.asideGroup&&D.asideGroup[s])?D.asideGroup[s][n]:null)||null;
+}
+/* what to call the class: the rule may say, otherwise go with the group most of
+   the members already sit in, otherwise the shortest name among them */
+function ruleName(r,members,s){
+  if(rname[r.id]&&rname[r.id][s]!==undefined)return rname[r.id][s];
+  if(r.into)return r.into;
+  const c={};
+  for(const n of members){const g=groupOn(s,n); if(g)c[g]=(c[g]||0)+1;}
+  const best=Object.keys(c).sort((a,b)=>c[b]-c[a]||(a<b?-1:1))[0];
+  if(best&&c[best]>1)return best;
+  return members.slice().sort((a,b)=>a.length-b.length||(a<b?-1:1))[0]||"";
+}
+function ruleHits(){
+  const U=ruleUniverse(), out=[];
+  for(const r of RULES){
+    if(rskip[r.id])continue;
+    const all=r.pick(U);
+    if(all.length<2)continue;
+    const ex=rex[r.id]||(rex[r.id]=new Set());
+    const keep=all.filter(n=>!ex.has(n));
+    const name={R:ruleName(r,all,"R"),L:ruleName(r,all,"L")};
+    const todo={R:keep.filter(n=>groupOn("R",n)!==name.R),
+                L:keep.filter(n=>groupOn("L",n)!==name.L)};
+    if(!todo.R.length&&!todo.L.length)continue;   /* already the way it asks */
+    out.push({r:r,all:all,keep:keep,name:name,todo:todo});
+  }
+  return out;
+}
+function applyRule(h){
+  const n=h.todo.R.length+h.todo.L.length;
+  snapshot(h.r.title.toLowerCase()+" ("+n+")");
+  h.todo.R.forEach(g=>{made.R[g]=h.name.R;});
+  h.todo.L.forEach(g=>{made.L[g]=h.name.L;});
+  save();render();
+}
+function renderRules(){
+  $("stagelbl").textContent="Common cases — proposals you can edit before applying";
+  const hits=ruleHits();
+  if(!hits.length){
+    $("stage").innerHTML='<div class="done">Nothing left here. Every pattern the app '+
+      'knows about either does not occur in this font or is already the way it would ask for.</div>';
+    return;}
+  $("stage").innerHTML=hits.map(h=>{
+    const r=h.r, ex=rex[r.id];
+    const one=h.name.R===h.name.L;
+    const field=(s,lab)=>'<label class="rf"><span>'+lab+'</span>'+
+      '<input data-rn="'+esc(r.id)+'" data-rs="'+s+'" value="'+esc(h.name[s])+'" spellcheck="false"></label>';
+    return '<div class="np" data-rule="'+esc(r.id)+'">'+
+      '<div class="h"><span class="t"><b>'+esc(r.title)+'</b></span>'+
+      '<span class="a"><button class="y" data-rok="'+esc(r.id)+'">Apply to '+
+        (h.todo.R.length+h.todo.L.length)+'</button>'+
+      '<button data-rno="'+esc(r.id)+'">Skip</button></span></div>'+
+      '<div class="why" style="margin:-4px 0 10px">'+esc(r.why)+'</div>'+
+      '<div class="rrow">'+(one?field("R","class"):field("R","right flank")+field("L","left flank"))+
+        '<span class="rc">'+h.keep.length+' of '+h.all.length+
+        ' — click a character to leave it out</span></div>'+
+      '<div class="chips'+(caps?" cap":"")+'">'+
+      h.all.map(n=>chip(n,(ex.has(n)?"off ":"")+"rg")).join("")+
+      '</div></div>';
+  }).join("");
+}
 /* ---------- what already exists, and what looks wrong in it ---------- */
 /* ---- read the last decision and guess what it implies ----
    The signal is usually in the names: someone who files five .swsh01 glyphs
@@ -2095,7 +2224,8 @@ function twinsPossible(by){
 }
 function tuneTabs(by){
   const multi=Object.keys(by).some(c=>c!==NOCLASS&&by[c].length>1);
-  const show={work:true,pairs:twinsPossible(by),sim:multi,audit:multi,list:true};
+  const show={work:true,rules:view==="rules"||ruleHits().length>0,pairs:twinsPossible(by),
+              sim:multi,audit:multi,list:true};
   let fallback=false;
   for(const b of $("viewseg").children){
     const on=show[b.dataset.view]!==false;
@@ -2119,7 +2249,8 @@ function render(){
   const u=$("undo"), h=hist[hist.length-1];
   u.disabled=!h;
   $("undot").textContent=h?("Undo: "+h.label):"Nothing to undo";
-  if(view==="audit")renderAudit();
+  if(view==="rules")renderRules();
+  else if(view==="audit")renderAudit();
   else if(view==="list")renderList();
   else if(view==="sim")renderSim();
   else if(view==="pairs")renderPairs();
@@ -2131,6 +2262,18 @@ function render(){
    stacked duplicates and made a single click toggle a chip several times */
 const BANDW={0:3,3:3,6:4,10:4};
 $("stage").addEventListener("click",e=>{
+  if(view==="rules"){
+    const ok=e.target.closest("[data-rok]");
+    if(ok){const h=ruleHits().find(x=>x.r.id===ok.dataset.rok); if(h)applyRule(h); return;}
+    const no=e.target.closest("[data-rno]");
+    if(no){rskip[no.dataset.rno]=1;save();render();return;}
+    const c=e.target.closest(".chip.rg");
+    if(c&&c.dataset.n){
+      const id=c.closest("[data-rule]").dataset.rule, s=rex[id]||(rex[id]=new Set());
+      s.has(c.dataset.n)?s.delete(c.dataset.n):s.add(c.dataset.n);
+      renderRules();return;}
+    return;
+  }
   if(view==="audit"){
     const mo=e.target.closest("[data-more2]");
     if(mo){const k=mo.dataset.more2;clexp.has(k)?clexp.delete(k):clexp.add(k);renderAudit();return;}
@@ -2275,6 +2418,19 @@ $("mine").addEventListener("click",e=>{
   for(const g of Object.keys(done)) if(done[g]===name) delete done[g];
   save();render();
 });
+$("stage").addEventListener("input",e=>{
+  const f=e.target.closest("[data-rn]");
+  if(!f)return;
+  const id=f.dataset.rn;
+  (rname[id]=rname[id]||{})[f.dataset.rs]=f.value.trim();
+  /* a two-sided rule shown as one field keeps both sides in step - and the
+     count has to be taken after that, not before */
+  if(f.parentNode.parentNode.querySelectorAll("[data-rn]").length===1)
+    rname[id][f.dataset.rs==="R"?"L":"R"]=f.value.trim();
+  const h=ruleHits().find(x=>x.r.id===id);
+  const btn=f.closest("[data-rule]").querySelector("[data-rok]");
+  if(btn&&h)btn.textContent="Apply to "+(h.todo.R.length+h.todo.L.length);
+});
 $("undo").addEventListener("click",()=>{nprops=[];renderNext();undo();});
 $("learn").addEventListener("change",e=>{
   learn=e.target.checked;
@@ -2390,7 +2546,7 @@ $("cp").addEventListener("click",async()=>{
 $("reset").addEventListener("click",()=>{
   if(!confirm("Erase every class you made?"))return;
   snapshot("reset everything");
-  made={R:{},L:{}};fdis={};seed=null;cand=null;picked.clear();
+  made={R:{},L:{}};fdis={};rskip={};rex={};rname={};seed=null;cand=null;picked.clear();
   try{localStorage.removeItem(KEY);}catch(e){}
   render();
 });

@@ -15,6 +15,8 @@ font never leaves your machine — it is read and written in the page itself.
 * **Twin classes** — capitals against small caps, `@Y` against `@Y.alt01`. Their
   memberships should mirror; the gaps are shown and fixed with one button
 * **Similar classes** — pairs that are nearly one class already
+* **Common cases** — patterns that hold in most fonts, offered as proposals you
+  can edit: rename the class, drop members, apply or skip
 * **All classes** — the whole font, unassigned glyphs included, with reassignment
 
 A running list of findings sits below: glyphs drawn alike but filed apart, and —
